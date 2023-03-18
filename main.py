@@ -1,4 +1,5 @@
-import sys
+import re
+from ipaddress import IPv4Network
 
 indentation_length = ' '
 
@@ -46,35 +47,105 @@ def ttree_to_json(ttree,level=0):
             dict_insert_or_append(result,cn['line'],0)
             return result
     return result
-def parse_asa_configuration(input_raw, input_parse):
+def parse_asa_config(config_tree):
     # Set up lists and dictionaries for return purposes
-    names = []
-    objects = {}
-    object_groups = {}
-    # Read each line of the config, looking for configuratio components that we care about
-    for line in input_raw:
+    names = {}
+    addresses = {}
+    addrgrps = {}
+    services = {}
+    servicegrps = {}
+    acls = []
+    # Read each line of the config, looking for configuration components that we care about
+    for line in config_tree.keys():
         # Identify all staticallly configured name/IPAddress translations
-        if re.match(
-                "^name (([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]).*",
-                line):
-            names.append(line)
-
+        if re.match("^name (([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]).*", line):
+            tmp = line.split(' ')
+            names[tmp[2]] = tmp[1]
         # Identify and collect configurations for all configured objects
-        if 'object network' in line:
-            obj = input_parse.find_children_w_parents(line, '^(?! nat ?.*)')
-            obj_name = (line.split()).pop(2)
-            if not obj_name in objects and obj:
-                objects[obj_name] = (obj)
+        if re.match("^object network.*",line):
+            tmp_obj = line.split(' ')
+            tmp_obj_value = ''
+            tmp_obj_description = ''
+            try:
+                for x in config_tree[line].keys():
+                    if re.match("^host.*",x):
+                        tmp_obj_value = x.split(' ')[-1]+'/32'
+                    elif re.match("^description.*",x):
+                        tmp_obj_description = x[12:]
+                    elif re.match("^subnet",x):
+                        tmp_line = x.split(' ')
+                        tmp_obj_value = tmp_line[1]+'/'+tmp_line[2]
+                    else:
+                        raise ValueError
 
+                addresses[tmp_obj[-1]] = [tmp_obj_value, tmp_obj_description]
+            except:
+                print("Error in parsing line: ",line)
         # Identify and collect configurations for all configured object groups
-        if 'object-group network' in line:
-            obj_group = input_parse.find_children_w_parents(line, '.*')
-            obj_group_name = (line.split()).pop(2)
-            if not obj_group_name in object_groups and obj_group:
-                object_groups[obj_group_name] = (obj_group)
+        if re.match("^object-group network.*",line):
+            tmp_obj = line.split(' ')
+            tmp_obj_members = []
+            tmp_obj_description = ''
+            try:
+                for x in config_tree[line].keys():
+                    if re.match("^network-object host .*", x):
+                        tmp = x.split(' ')[-1]
+                        addresses['h-'+tmp] = tmp+'/32'
+                        tmp_obj_members.append('h-'+tmp)
+                    elif re.match("^network-object object.*",x):
+                        tmp = x.split(' ')[-1]
+                        tmp_obj_members.append(tmp)
+                    elif re.match("^network-object.*",x):
+                        tmp = x.split(' ')
+                        addresses["net-"+tmp[-2]+"n"+str(IPv4Network('0.0.0.0/'+tmp[-1]).prefixlen)] = tmp[-2] + "/" + str(IPv4Network('0.0.0.0/'+tmp[-1]).prefixlen)
+                        tmp_obj_members.append("net-"+tmp[-2]+"n"+str(IPv4Network('0.0.0.0/'+tmp[-1]).prefixlen))
+                    elif re.match("^group-object.*",x):
+                        tmp = x.split(' ')[-1]
+                        tmp_obj_members.append(tmp)
+                    elif re.match("^description.*", x):
+                        tmp_obj_description = x[12:]
+                    else:
+                        raise ValueError
 
-    return (names, objects, object_groups)
+                addrgrps[tmp_obj[-1]] = [tmp_obj_members, tmp_obj_description]
+            except:
+                print("Error in parsing line: ", line)
+
+#        # Identify and collect configurations for all configured access lists
+#        if re.match("^access-list .*", line):
+#            access_lists.append(line)
+#
+#        # Identify and collect configurations for all configured object NATs
+#        if 'object network' in line:
+#            obj_nat = input_parse.find_children_w_parents(line, '^ nat .*')
+#            obj_nat_name = (line.split()).pop(2)
+#            if not obj_nat_name in object_nat and obj_nat:
+#                object_nat[obj_nat_name] = (obj_nat)
+#
+#        # Identify and collect configurations for all configured static NATs
+#        if re.match("^nat .*", line):
+#            static_nat.append(line)
+#
+#        # Identify and collect configurations for all configured service objects
+#        if 'object-group service' in line:
+#            obj_service = input_parse.find_children_w_parents(line, '.*')
+#            obj_service_name = (line.split()).pop(2)
+#            if not obj_service_name in object_services and obj_service:
+#                object_services[obj_service_name] = (obj_service)
+#
+#        # Identify and collect configurations for all configured misc service objects
+#        if 'object service' in line:
+#            other_obj = input_parse.find_children_w_parents(line, '.*')
+#            other_obj_name = (line.split()).pop(2)
+#            if not other_obj_name in other_services and other_obj:
+#                other_services[other_obj_name] = (other_obj)
+
+
+    # Return all these things. At this point we aren't being discriminate. These are a raw collections of all items.
+    return (names, addresses, addrgrps, services, servicegrps, acls)
+
 def main():
+    # Setting up config-file
     user_source_file = "src/running-config.cfg"
 
     # Open the source configuration file for reading and import/parse it.
@@ -84,6 +155,13 @@ def main():
 
     config_level = indent_level(config_raw)
     config_tree = ttree_to_json(config_level)
-    print(config_tree)
+    ret_names, ret_addresses, ret_addrgrps, ret_services, ret_servicegrps, ret_acls = parse_asa_config(config_tree)
+    print("Local DNS Entries", ret_names)
+    print("Addresses", ret_addresses)
+    print("Address Groups", ret_addrgrps)
+    print("Services", ret_services)
+    print("Service Groups", ret_servicegrps)
+    print("ACLs", ret_acls)
+
 if __name__ == '__main__':
   main()
