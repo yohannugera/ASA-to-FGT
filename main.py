@@ -1,5 +1,6 @@
 import re
 from ipaddress import IPv4Network
+import pandas as pd
 
 indentation_length = ' '
 
@@ -49,20 +50,26 @@ def ttree_to_json(ttree,level=0):
     return result
 def parse_asa_config(config_tree):
     # Set up lists and dictionaries for return purposes
-    names = {}
-    addresses = {}
-    addrgrps = {}
-    services = {}
-    servicegrps = {}
+    names = []
+    addresses = []
+    addrgrps = []
+    services = []
+    servicegrps = []
     acls = []
+    unparsed_tree = config_tree.copy()
     # Read each line of the config, looking for configuration components that we care about
     for line in config_tree.keys():
         # Identify all staticallly configured name/IPAddress translations
         if re.match("^name (([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]).*", line):
             tmp = line.split(' ')
-            names[tmp[2]] = tmp[1]
+            tmp_out = {}
+            tmp_out['name'] = tmp[2]
+            tmp_out['value'] = tmp[1]
+            names.append(tmp_out)
+            unparsed_tree.pop(line)
         # Identify and collect configurations for all configured objects
         if re.match("^object network.*",line):
+            tmp_out = {}
             tmp_obj = line.split(' ')
             tmp_obj_value = ''
             tmp_obj_description = ''
@@ -74,15 +81,20 @@ def parse_asa_config(config_tree):
                         tmp_obj_description = x[12:]
                     elif re.match("^subnet",x):
                         tmp_line = x.split(' ')
-                        tmp_obj_value = tmp_line[1]+'/'+tmp_line[2]
+                        tmp_obj_value = tmp_line[1]+'/'+str(IPv4Network('0.0.0.0/' + tmp_line[2]).prefixlen)
                     else:
                         raise ValueError
 
-                addresses[tmp_obj[-1]] = [tmp_obj_value, tmp_obj_description]
+                tmp_out['name'] = tmp_obj[-1]
+                tmp_out['subnet'] = str(tmp_obj_value)
+                tmp_out['description'] = tmp_obj_description
+                addresses.append(tmp_out)
+                unparsed_tree.pop(line)
             except:
-                print("Error in parsing line: ",line)
+                print("Error in parsing line (Objects): ",line)
         # Identify and collect configurations for all configured object groups
         if re.match("^object-group network.*",line):
+            tmp_out = {}
             tmp_obj = line.split(' ')
             tmp_obj_members = []
             tmp_obj_description = ''
@@ -90,14 +102,14 @@ def parse_asa_config(config_tree):
                 for x in config_tree[line].keys():
                     if re.match("^network-object host .*", x):
                         tmp = x.split(' ')[-1]
-                        addresses['h-'+tmp] = tmp+'/32'
+                        addresses.append({'name':'h-'+tmp,'subnet':tmp+'/32'})
                         tmp_obj_members.append('h-'+tmp)
                     elif re.match("^network-object object.*",x):
                         tmp = x.split(' ')[-1]
                         tmp_obj_members.append(tmp)
                     elif re.match("^network-object.*",x):
                         tmp = x.split(' ')
-                        addresses["net-"+tmp[-2]+"n"+str(IPv4Network('0.0.0.0/'+tmp[-1]).prefixlen)] = tmp[-2] + "/" + str(IPv4Network('0.0.0.0/'+tmp[-1]).prefixlen)
+                        addresses.append({'name':"net-"+tmp[-2]+"n"+str(IPv4Network('0.0.0.0/'+tmp[-1]).prefixlen),'subnet':tmp[-2] + "/" + str(IPv4Network('0.0.0.0/'+tmp[-1]).prefixlen)})
                         tmp_obj_members.append("net-"+tmp[-2]+"n"+str(IPv4Network('0.0.0.0/'+tmp[-1]).prefixlen))
                     elif re.match("^group-object.*",x):
                         tmp = x.split(' ')[-1]
@@ -107,10 +119,39 @@ def parse_asa_config(config_tree):
                     else:
                         raise ValueError
 
-                addrgrps[tmp_obj[-1]] = [tmp_obj_members, tmp_obj_description]
-            except:
-                print("Error in parsing line: ", line)
+                tmp_out['name'] = tmp_obj[-1]
+                tmp_out['members'] = tmp_obj_members
+                tmp_out['description'] = tmp_obj_description
+                addrgrps.append(tmp_out)
+                unparsed_tree.pop(line)
 
+            except:
+                print("Error in parsing line (Object Groups): ", line)
+#        # Identify and collect configurations for all configured services
+#        if re.match("^object service.*",line):
+#            tmp_out = {}
+#            tmp_obj = line.split(' ')
+#            tmp_obj_value = ''
+#            tmp_obj_description = ''
+#            try:
+#                for x in config_tree[line].keys():
+#                    if re.match("^host.*",x):
+#                        tmp_obj_value = x.split(' ')[-1]+'/32'
+#                    elif re.match("^description.*",x):
+#                        tmp_obj_description = x[12:]
+#                    elif re.match("^subnet",x):
+#                        tmp_line = x.split(' ')
+#                        tmp_obj_value = tmp_line[1]+'/'+str(IPv4Network('0.0.0.0/' + tmp_line[2]).prefixlen)
+#                    else:
+#                        raise ValueError
+#
+#                tmp_out['name'] = tmp_obj[-1]
+#                tmp_out['subnet'] = str(tmp_obj_value)
+#                tmp_out['description'] = tmp_obj_description
+#                addresses.append(tmp_out)
+#                unparsed_tree.pop(line)
+#            except:
+#                print("Error in parsing line (Objects): ",line)
 #        # Identify and collect configurations for all configured access lists
 #        if re.match("^access-list .*", line):
 #            access_lists.append(line)
@@ -142,7 +183,7 @@ def parse_asa_config(config_tree):
 
 
     # Return all these things. At this point we aren't being discriminate. These are a raw collections of all items.
-    return (names, addresses, addrgrps, services, servicegrps, acls)
+    return (names, addresses, addrgrps, services, servicegrps, acls, unparsed_tree)
 
 def main():
     # Setting up config-file
@@ -155,13 +196,30 @@ def main():
 
     config_level = indent_level(config_raw)
     config_tree = ttree_to_json(config_level)
-    ret_names, ret_addresses, ret_addrgrps, ret_services, ret_servicegrps, ret_acls = parse_asa_config(config_tree)
-    print("Local DNS Entries", ret_names)
-    print("Addresses", ret_addresses)
-    print("Address Groups", ret_addrgrps)
-    print("Services", ret_services)
-    print("Service Groups", ret_servicegrps)
-    print("ACLs", ret_acls)
+    ret_names, ret_addresses, ret_addrgrps, ret_services, ret_servicegrps, ret_acls, ret_unparsed = parse_asa_config(config_tree)
+
+    df_names = pd.DataFrame(data=ret_names)
+    df_addresses = pd.DataFrame(data=ret_addresses)
+    df_addrgrps = pd.DataFrame(data=ret_addrgrps)
+    df_services = pd.DataFrame(data=ret_services)
+    df_servicegrps = pd.DataFrame(data=ret_servicegrps)
+    df_acls = pd.DataFrame(data=ret_acls)
+
+    with pd.ExcelWriter('output.xlsx') as writer:
+        df_names.to_excel(writer, sheet_name='LocalDNS')
+        df_addresses.to_excel(writer, sheet_name='Addresses')
+        df_addrgrps.to_excel(writer,sheet_name='AddrGrps')
+        df_services.to_excel(writer,sheet_name='Services')
+        df_servicegrps.to_excel(writer,sheet_name='ServiceGrps')
+        df_acls.to_excel(writer,sheet_name='ACLs')
+
+    x = open('output.unparsed', 'w')
+    for y in ret_unparsed:
+        x.write(y+'\n')
+        if config_tree[y] != 0:
+            for z in config_tree[y]:
+                x.write(' '+str(z)+'\n')
+    x.close()
 
 if __name__ == '__main__':
   main()
