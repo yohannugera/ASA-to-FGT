@@ -91,7 +91,7 @@ def parse_asa_config(config_tree):
                 addresses.append(tmp_out)
                 unparsed_tree.pop(line)
             except:
-                print("Error in parsing line (Objects): ",line)
+                print("Error in parsing line (Addresses): ",line)
         # Identify and collect configurations for all configured object groups
         if re.match("^object-group network.*",line):
             tmp_out = {}
@@ -127,59 +127,70 @@ def parse_asa_config(config_tree):
 
             except:
                 print("Error in parsing line (Object Groups): ", line)
-#        # Identify and collect configurations for all configured services
-#        if re.match("^object service.*",line):
-#            tmp_out = {}
-#            tmp_obj = line.split(' ')
-#            tmp_obj_value = ''
-#            tmp_obj_description = ''
-#            try:
-#                for x in config_tree[line].keys():
-#                    if re.match("^host.*",x):
-#                        tmp_obj_value = x.split(' ')[-1]+'/32'
-#                    elif re.match("^description.*",x):
-#                        tmp_obj_description = x[12:]
-#                    elif re.match("^subnet",x):
-#                        tmp_line = x.split(' ')
-#                        tmp_obj_value = tmp_line[1]+'/'+str(IPv4Network('0.0.0.0/' + tmp_line[2]).prefixlen)
-#                    else:
-#                        raise ValueError
-#
-#                tmp_out['name'] = tmp_obj[-1]
-#                tmp_out['subnet'] = str(tmp_obj_value)
-#                tmp_out['description'] = tmp_obj_description
-#                addresses.append(tmp_out)
-#                unparsed_tree.pop(line)
-#            except:
-#                print("Error in parsing line (Objects): ",line)
+        # Identify and collect configurations for all configured services
+        if re.match("^object service.*",line):
+            tmp_out = {}
+            tmp_out['name'] = line.split(' ')[-1]
+            tmp_obj_type = ''
+            tmp_obj_value = ''
+            tmp_obj_direction = ''
+            tmp_obj_description = ''
+            try:
+                for x in config_tree[line].keys():
+                    if re.match("^service.*",x):
+                        tmp_obj_type = x.split(' ')[1]
+                        tmp_obj_direction = x.split(' ')[2]
+                        if x.split(' ')[3] == "eq":
+                            tmp_obj_value = x.split(' ')[4]
+                        else:
+                            raise ValueError
+                    elif re.match("^description.*",x):
+                        tmp_obj_description = x[12:]
+                    else:
+                        raise ValueError
+
+                tmp_out['type'] = tmp_obj_type
+                tmp_out['value'] = tmp_obj_value
+                tmp_out['description'] = tmp_obj_description
+                tmp_out['direction'] = tmp_obj_direction
+                services.append(tmp_out)
+                unparsed_tree.pop(line)
+            except:
+                print("Error in parsing line (Services): ",line)
+        # Identify and collect configurations for all configured service objects
+        if re.match("^object-group service.*tcp",line):
+            try:
+                tmp_out = {}
+                tmp_out['name'] = line.split(' ')[2]
+                tmp_obj_members = []
+                tmp_obj_description = ''
+                tmp_obj_type = line.split(' ')[3]
+                for x in config_tree[line].keys():
+                    if re.match("^port-object.*", x):
+                        if x.split(' ')[1] == "eq":
+                            tmp_obj_members.append(x.split(' ')[2])
+                            services.append({'name':x.split(" ")[2],'type':tmp_obj_type,'value':x.split(" ")[2],'direction':'destination','description':''})
+                        else:
+                            raise ValueError
+                    elif re.match("^description.*", x):
+                        tmp_obj_description = x[12:]
+                    else:
+                        raise ValueError
+
+                tmp_out['members'] = tmp_obj_members
+                tmp_out['description'] = tmp_obj_description
+                servicegrps.append(tmp_out)
+                unparsed_tree.pop(line)
+            except:
+                print("Error in parsing line (Service Groups): ", line)
+
 #        # Identify and collect configurations for all configured access lists
 #        if re.match("^access-list .*", line):
 #            access_lists.append(line)
 #
-#        # Identify and collect configurations for all configured object NATs
-#        if 'object network' in line:
-#            obj_nat = input_parse.find_children_w_parents(line, '^ nat .*')
-#            obj_nat_name = (line.split()).pop(2)
-#            if not obj_nat_name in object_nat and obj_nat:
-#                object_nat[obj_nat_name] = (obj_nat)
-#
 #        # Identify and collect configurations for all configured static NATs
 #        if re.match("^nat .*", line):
 #            static_nat.append(line)
-#
-#        # Identify and collect configurations for all configured service objects
-#        if 'object-group service' in line:
-#            obj_service = input_parse.find_children_w_parents(line, '.*')
-#            obj_service_name = (line.split()).pop(2)
-#            if not obj_service_name in object_services and obj_service:
-#                object_services[obj_service_name] = (obj_service)
-#
-#        # Identify and collect configurations for all configured misc service objects
-#        if 'object service' in line:
-#            other_obj = input_parse.find_children_w_parents(line, '.*')
-#            other_obj_name = (line.split()).pop(2)
-#            if not other_obj_name in other_services and other_obj:
-#                other_services[other_obj_name] = (other_obj)
 
 
     # Return all these things. At this point we aren't being discriminate. These are a raw collections of all items.
