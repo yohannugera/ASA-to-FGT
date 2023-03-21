@@ -1,3 +1,5 @@
+# Exclude these files
 *.xlsx
 *.cfg
 *.unparsed
+src/*
