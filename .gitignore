@@ -1,4 +1,4 @@
 *.xlsx
 *.cfg
 *.unparsed
-/src/*.cfg
+src/*.cfg
