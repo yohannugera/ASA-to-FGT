@@ -157,8 +157,8 @@ def parse_asa_config(config_tree):
                 unparsed_tree.pop(line)
             except:
                 print("Error in parsing line (Services): ",line)
-        # Identify and collect configurations for all configured service objects
-        if re.match("^object-group service.*tcp",line):
+        # Identify and collect configurations for all configured service groups
+        if re.match("^object-group service.* tcp",line):
             try:
                 tmp_out = {}
                 tmp_out['name'] = line.split(' ')[2]
@@ -170,8 +170,76 @@ def parse_asa_config(config_tree):
                         if x.split(' ')[1] == "eq":
                             tmp_obj_members.append(x.split(' ')[2])
                             services.append({'name':x.split(" ")[2],'type':tmp_obj_type,'value':x.split(" ")[2],'direction':'destination','description':''})
+                        elif x.split(' ')[1] == "range":
+                            tmp_obj_members.append('tcp-'+x.split(' ')[2]+x.split(' ')[3])
+                            services.append({'name': 'tcp-'+x.split(' ')[2]+x.split(' ')[3], 'type': tmp_obj_type, 'value': x.split(' ')[2]+x.split(' ')[3],
+                                             'direction': 'destination', 'description': ''})
                         else:
                             raise ValueError
+                    elif re.match("^group-object.*", x):
+                        tmp_obj_members.append(x.split(' ')[1])
+                    elif re.match("^description.*", x):
+                        tmp_obj_description = x[12:]
+                    else:
+                        raise ValueError
+
+                tmp_out['members'] = tmp_obj_members
+                tmp_out['description'] = tmp_obj_description
+                servicegrps.append(tmp_out)
+                unparsed_tree.pop(line)
+            except:
+                print("Error in parsing line (Service Groups): ", line)
+        if re.match("^object-group service.* udp",line):
+            try:
+                tmp_out = {}
+                tmp_out['name'] = line.split(' ')[2]
+                tmp_obj_members = []
+                tmp_obj_description = ''
+                tmp_obj_type = line.split(' ')[3]
+                for x in config_tree[line].keys():
+                    if re.match("^port-object.*", x):
+                        if x.split(' ')[1] == "eq":
+                            tmp_obj_members.append(x.split(' ')[2])
+                            services.append({'name':x.split(" ")[2],'type':tmp_obj_type,'value':x.split(" ")[2],'direction':'destination','description':''})
+                        elif x.split(' ')[1] == "range":
+                            tmp_obj_members.append('tcp-'+x.split(' ')[2]+x.split(' ')[3])
+                            services.append({'name': 'tcp-'+x.split(' ')[2]+x.split(' ')[3], 'type': tmp_obj_type, 'value': x.split(' ')[2]+x.split(' ')[3],
+                                             'direction': 'destination', 'description': ''})
+                        else:
+                            raise ValueError
+                    elif re.match("^group-object.*", x):
+                        tmp_obj_members.append(x.split(' ')[1])
+                    elif re.match("^description.*", x):
+                        tmp_obj_description = x[12:]
+                    else:
+                        raise ValueError
+
+                tmp_out['members'] = tmp_obj_members
+                tmp_out['description'] = tmp_obj_description
+                servicegrps.append(tmp_out)
+                unparsed_tree.pop(line)
+            except:
+                print("Error in parsing line (Service Groups): ", line)
+        if re.match("^object-group service.* tcp-udp",line):
+            try:
+                tmp_out = {}
+                tmp_out['name'] = line.split(' ')[2]
+                tmp_obj_members = []
+                tmp_obj_description = ''
+                tmp_obj_type = line.split(' ')[3]
+                for x in config_tree[line].keys():
+                    if re.match("^port-object.*", x):
+                        if x.split(' ')[1] == "eq":
+                            tmp_obj_members.append(x.split(' ')[2])
+                            services.append({'name':x.split(" ")[2],'type':tmp_obj_type,'value':x.split(" ")[2],'direction':'destination','description':''})
+                        elif x.split(' ')[1] == "range":
+                            tmp_obj_members.append('tcp-'+x.split(' ')[2]+x.split(' ')[3])
+                            services.append({'name': 'tcp-'+x.split(' ')[2]+x.split(' ')[3], 'type': tmp_obj_type, 'value': x.split(' ')[2]+x.split(' ')[3],
+                                             'direction': 'destination', 'description': ''})
+                        else:
+                            raise ValueError
+                    elif re.match("^group-object.*", x):
+                        tmp_obj_members.append(x.split(' ')[1])
                     elif re.match("^description.*", x):
                         tmp_obj_description = x[12:]
                     else:
