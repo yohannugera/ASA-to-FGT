@@ -2,4 +2,4 @@
 *.xlsx
 *.cfg
 *.unparsed
-src/*
+*.txt

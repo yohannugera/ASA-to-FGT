@@ -427,12 +427,9 @@ def parse_asa_config(config_tree):
     # Return all these things. At this point we aren't being discriminate. These are a raw collections of all items.
     return (names, addresses, addrgrps, services, servicegrps, acls, unparsed_tree)
 
-def main():
-    # Setting up config-file
-    user_source_file = "src/running-config.cfg"
-
+def main(config_file: str):
     # Open the source configuration file for reading and import/parse it.
-    x = open(user_source_file,'r')
+    x = open(config_file,'r')
     config_raw = x.readlines()
     x.close()
 
