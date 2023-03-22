@@ -28,81 +28,81 @@ default_protocols = {
     'udp':'17'
 }
 default_ports = {
-    'aol':['TCP','5190'],
-    'bgp':['TCP','179'],
-    'biff':['UDP','512'],
-    'bootpc':['UDP','68'],
-    'bootps':['UDP','67'],
-    'chargen':['TCP','19'],
-    'cifs':['TCP-UDP','3020'],
-    'citrix-ica':['TCP','1494'],
-    'cmd':['TCP','514'],
-    'ctiqbe':['TCP','2748'],
-    'daytime':['TCP','13'],
-    'discard':['TCP-UDP','9'],
-    'dnsix':['UDP','195'],
-    'domain':['TCP-UDP','53'],
-    'echo':['TCP-UDP','7'],
-    'exec':['TCP','512'],
-    'finger':['TCP','79'],
-    'ftp':['TCP','21'],
-    'ftp-data':['TCP','20'],
-    'gopher':['TCP','70'],
-    'h323':['TCP','1720'],
-    'hostname':['TCP','101'],
-    'http':['TCP-UDP','80'],
-    'https':['TCP','443'],
-    'ident':['TCP','113'],
-    'imap4':['TCP','143'],
-    'irc':['TCP','194'],
-    'isakmp':['UDP','500'],
-    'kerberos':['TCP-UDP','750'],
-    'klogin':['TCP','543'],
-    'kshell':['TCP','544'],
-    'ldap':['TCP','389'],
-    'ldaps':['TCP','636'],
-    'login':['TCP','513'],
-    'lotusnotes':['TCP','1352'],
-    'lpd':['TCP','515'],
-    'mobile-ip':['UDP','434'],
-    'nameserver':['UDP','42'],
-    'netbios-dgm':['UDP','138'],
-    'netbios-ns':['UDP','137'],
-    'netbios-ssn':['TCP','139'],
-    'nfs':['TCP-UDP','2049'],
-    'nntp':['TCP','119'],
-    'ntp':['UDP','123'],
-    'pcanywhere-data':['TCP','5631'],
-    'pcanywhere-status':['UDP','5632'],
-    'pim-auto-rp':['TCP-UDP','496'],
-    'pop2':['TCP','109'],
-    'pop3':['TCP','110'],
-    'pptp':['TCP','1723'],
-    'radius':['UDP','1645'],
-    'radius-acct':['UDP','1646'],
-    'rip':['UDP','520'],
-    'rsh':['TCP','514'],
-    'rtsp':['TCP','554'],
-    'secureid-udp':['UDP','5510'],
-    'sip':['TCP-UDP','5060'],
-    'smtp':['TCP','25'],
-    'snmp':['UDP','161'],
-    'snmptrap':['UDP','162'],
-    'sqlnet':['TCP','1521'],
-    'ssh':['TCP','22'],
-    'sunrpc':['TCP-UDP','111'],
-    'syslog':['UDP','514'],
-    'tacacs':['TCP, UDP','49'],
-    'talk':['TCP-UDP','517'],
-    'telnet':['TCP','23'],
-    'tftp':['UDP','69'],
-    'time':['UDP','37'],
-    'uucp':['TCP','540'],
-    'vxlan':['UDP','4789'],
-    'who':['UDP','513'],
-    'whois':['TCP','43'],
-    'www':['TCP-UDP','80'],
-    'xdmcp':['UDP','177']
+    'aol':['tcp','5190'],
+    'bgp':['tcp','179'],
+    'biff':['udp','512'],
+    'bootpc':['udp','68'],
+    'bootps':['udp','67'],
+    'chargen':['tcp','19'],
+    'cifs':['tcp-udp','3020'],
+    'citrix-ica':['tcp','1494'],
+    'cmd':['tcp','514'],
+    'ctiqbe':['tcp','2748'],
+    'daytime':['tcp','13'],
+    'discard':['tcp-udp','9'],
+    'dnsix':['udp','195'],
+    'domain':['tcp-udp','53'],
+    'echo':['tcp-udp','7'],
+    'exec':['tcp','512'],
+    'finger':['tcp','79'],
+    'ftp':['tcp','21'],
+    'ftp-data':['tcp','20'],
+    'gopher':['tcp','70'],
+    'h323':['tcp','1720'],
+    'hostname':['tcp','101'],
+    'http':['tcp-udp','80'],
+    'https':['tcp','443'],
+    'ident':['tcp','113'],
+    'imap4':['tcp','143'],
+    'irc':['tcp','194'],
+    'isakmp':['udp','500'],
+    'kerberos':['tcp-udp','750'],
+    'klogin':['tcp','543'],
+    'kshell':['tcp','544'],
+    'ldap':['tcp','389'],
+    'ldaps':['tcp','636'],
+    'login':['tcp','513'],
+    'lotusnotes':['tcp','1352'],
+    'lpd':['tcp','515'],
+    'mobile-ip':['udp','434'],
+    'nameserver':['udp','42'],
+    'netbios-dgm':['udp','138'],
+    'netbios-ns':['udp','137'],
+    'netbios-ssn':['tcp','139'],
+    'nfs':['tcp-udp','2049'],
+    'nntp':['tcp','119'],
+    'ntp':['udp','123'],
+    'pcanywhere-data':['tcp','5631'],
+    'pcanywhere-status':['udp','5632'],
+    'pim-auto-rp':['tcp-udp','496'],
+    'pop2':['tcp','109'],
+    'pop3':['tcp','110'],
+    'pptp':['tcp','1723'],
+    'radius':['udp','1645'],
+    'radius-acct':['udp','1646'],
+    'rip':['udp','520'],
+    'rsh':['tcp','514'],
+    'rtsp':['tcp','554'],
+    'secureid-udp':['udp','5510'],
+    'sip':['tcp-udp','5060'],
+    'smtp':['tcp','25'],
+    'snmp':['udp','161'],
+    'snmptrap':['udp','162'],
+    'sqlnet':['tcp','1521'],
+    'ssh':['tcp','22'],
+    'sunrpc':['tcp-udp','111'],
+    'syslog':['udp','514'],
+    'tacacs':['tcp, udp','49'],
+    'talk':['tcp-udp','517'],
+    'telnet':['tcp','23'],
+    'tftp':['udp','69'],
+    'time':['udp','37'],
+    'uucp':['tcp','540'],
+    'vxlan':['udp','4789'],
+    'who':['udp','513'],
+    'whois':['tcp','43'],
+    'www':['tcp-udp','80'],
+    'xdmcp':['udp','177']
 }
 
 def tab_level(line):
@@ -157,7 +157,23 @@ def parse_asa_config(config_tree):
     services = []
     servicegrps = []
     acls = []
+    misc_settings = []
     unparsed_tree = config_tree.copy()
+    acl_remark = ''     # This is because ACLs are coming with remarks
+    
+    # Populate services with ASA default values
+    for entry in default_ports.keys():
+        services.append({'name':entry,'type':default_ports[entry][0],
+            'value':default_ports[entry][1],
+            'direction':'destination',
+            'comment':'Created by Parser: ASA Default Ports'})
+    # Populate protocols with ASA default values
+    for entry in default_protocols.keys():
+        services.append({'name':entry,'type':'protocol',
+            'value':default_protocols[entry],
+            'direction':'',
+            'comment':'Created by Parser: ASA Default Ports'})  
+    
     # Read each line of the config, looking for configuration components that we care about
     for line in config_tree.keys():
         # Identify all staticallly configured name/IPAddress translations
@@ -230,16 +246,22 @@ def parse_asa_config(config_tree):
             try:
                 tmp_out = {}
                 tmp_out['name'] = line.split(' ')[-1]
-                tmp_out_type = ''
+                tmp_out['type'] = ''
                 tmp_out['value'] = ''
                 tmp_out['direction'] = ''
                 tmp_out['comment'] = ''
                 for x in config_tree[line].keys():
                     if re.match("^service.*",x):
-                        tmp_out_type = x.split(' ')[1]
+                        tmp_out['type'] = x.split(' ')[1]
                         tmp_out['direction'] = x.split(' ')[2]
                         if x.split(' ')[3] == "eq":
-                            tmp_out['value'] = x.split(' ')[4]
+                            tmp = x.split(' ')[4]
+                            if tmp in default_ports.keys():
+                                tmp_out['value'] = default_ports[tmp][1]
+                            else:
+                                tmp_out['value'] = tmp
+                        elif x.split(' ')[3] == "range":
+                            tmp_out['value'] = x.split(' ')[4]+'-'+x.split(' ')[5]
                         else:
                             raise ValueError
                     elif re.match("^description.*",x):
@@ -261,13 +283,17 @@ def parse_asa_config(config_tree):
                 tmp_out_type = line.split(' ')[3]
                 for x in config_tree[line].keys():
                     if re.match("^port-object.*", x):
-                        if x.split(' ')[1] == "eq":
-                            tmp_out['members'].append(tmp_out_type+'-'+x.split(' ')[2])
-                            services.append({'name':tmp_out_type+'-'+x.split(" ")[2],
-                                             'type':tmp_out_type,
-                                             'value':x.split(" ")[2],
-                                             'direction':'destination',
-                                             'comment':''})
+                        tmp = x.split(' ')
+                        if tmp[1] == "eq":
+                            if tmp[2] in default_ports.keys():
+                                tmp_out['members'].append(tmp[2])
+                            else:
+                                tmp_out['members'].append(tmp_out_type+'-'+x.split(' ')[2])
+                                services.append({'name':tmp_out_type+'-'+x.split(" ")[2],
+                                                'type':tmp_out_type,
+                                                'value':x.split(" ")[2],
+                                                'direction':'destination',
+                                                'comment':''})
                         elif x.split(' ')[1] == "range":
                             tmp_out['members'].append(tmp_out_type+'-'+x.split(' ')[2]+'-'+x.split(' ')[3])
                             services.append({'name': tmp_out_type+'-'+x.split(' ')[2]+'-'+x.split(' ')[3],
@@ -297,15 +323,19 @@ def parse_asa_config(config_tree):
                 tmp_out_type = line.split(' ')[3]
                 for x in config_tree[line].keys():
                     if re.match("^port-object.*", x):
-                        if x.split(' ')[1] == "eq":
-                            tmp_out['members'].append(tmp_out_type+'-'+x.split(' ')[2])
-                            services.append({'name':tmp_out_type+'-'+x.split(" ")[2],
-                                             'type':tmp_out_type,
-                                             'value':x.split(" ")[2],
-                                             'direction':'destination',
-                                             'comment':''})
+                        tmp = x.split(' ')
+                        if tmp[1] == "eq":
+                            if tmp[2] in default_ports.keys():
+                                tmp_out['members'].append(tmp[2])
+                            else:
+                                tmp_out['members'].append(tmp_out_type+'-'+x.split(' ')[2])
+                                services.append({'name':tmp_out_type+'-'+x.split(" ")[2],
+                                                'type':tmp_out_type,
+                                                'value':x.split(" ")[2],
+                                                'direction':'destination',
+                                                'comment':''})
                         elif x.split(' ')[1] == "range":
-                            tmp_out['members'].append(tmp_out_type+'-'+tmp_out_type+'-'+x.split(' ')[2]+'-'+x.split(' ')[3])
+                            tmp_out['members'].append(tmp_out_type+'-'+x.split(' ')[2]+'-'+x.split(' ')[3])
                             services.append({'name': tmp_out_type+'-'+x.split(' ')[2]+'-'+x.split(' ')[3],
                                              'type': tmp_out_type,
                                              'value': x.split(' ')[2]+'-'+x.split(' ')[3],
@@ -333,18 +363,22 @@ def parse_asa_config(config_tree):
                 tmp_out_type = line.split(' ')[3]
                 for x in config_tree[line].keys():
                     if re.match("^port-object.*", x):
-                        if x.split(' ')[1] == "eq":
-                            tmp_out['members'].append(tmp_out_type+'-'+x.split(' ')[2])
-                            services.append({'name':tmp_out_type+'-'+x.split(" ")[2],
-                                             'type':tmp_out_type,
-                                             'value':x.split(" ")[2],
-                                             'direction':'destination',
-                                             'comment':''})
+                        tmp = x.split(' ')
+                        if tmp[1] == "eq":
+                            if tmp[2] in default_ports.keys():
+                                tmp_out['members'].append(tmp[2])
+                            else:
+                                tmp_out['members'].append(tmp_out_type+'-'+x.split(' ')[2])
+                                services.append({'name':tmp_out_type+'-'+x.split(" ")[2],
+                                                'type':tmp_out_type,
+                                                'value':x.split(" ")[2],
+                                                'direction':'destination',
+                                                'comment':''})
                         elif x.split(' ')[1] == "range":
                             tmp_out['members'].append(tmp_out_type+'-'+x.split(' ')[2]+'-'+x.split(' ')[3])
                             services.append({'name': tmp_out_type+'-'+x.split(' ')[2]+'-'+x.split(' ')[3],
                                              'type': tmp_out_type,
-                                             'value': x.split(' ')[2]+x.split(' ')[3],
+                                             'value': x.split(' ')[2]+'-'+x.split(' ')[3],
                                              'direction': 'destination',
                                              'comment': ''})
                         else:
@@ -360,7 +394,6 @@ def parse_asa_config(config_tree):
                 unparsed_tree.pop(line)
             except:
                 print("Error in parsing line (Service Groups / TCP-UDP): ", line)
-                
         elif re.match("^object-group service.*",line):
             try:
                 tmp_out = {}
@@ -372,14 +405,17 @@ def parse_asa_config(config_tree):
                     if re.match("^service-object.*", x):
                         tmp_split = x.rstrip().split(' ')
                         if tmp_split[-2] == "eq":
-                            tmp_out['members'].append(tmp_split[1]+'-'+tmp_split[-1])
-                            services.append({
-                                'name':tmp_split[1]+'-'+tmp_split[-1],
-                                'type':tmp_split[1],
-                                'value':tmp_split[-1],
-                                'direction':'destination',
-                                'comment':''
-                                })
+                            if tmp_split[-1] in default_ports.keys():
+                                tmp_out['members'].append(tmp_split[-1])
+                            else:
+                                tmp_out['members'].append(tmp_split[1]+'-'+tmp_split[-1])
+                                services.append({
+                                    'name':tmp_split[1]+'-'+tmp_split[-1],
+                                    'type':tmp_split[1],
+                                    'value':tmp_split[-1],
+                                    'direction':'destination',
+                                    'comment':''
+                                    })
                         elif tmp_split[-2] == "range":
                             raise ValueError
                         elif tmp_split[1] == "object":
@@ -397,7 +433,6 @@ def parse_asa_config(config_tree):
                 unparsed_tree.pop(line)
             except:
                 print("Error in parsing line (Service Groups / Mixed): ", line)
-                
         if re.match("^object-group protocol.*",line):
             try:
                 tmp_out = {}
@@ -417,15 +452,75 @@ def parse_asa_config(config_tree):
 
 #        # Identify and collect configurations for all configured access lists
 #        if re.match("^access-list .*", line):
-#            access_lists.append(line)
+#            try:
+#                tmp_split = line.split(' ')
+#                tmp_out = {}
+#                tmp_out['direction'] = tmp_split[1]
+#                tmp_out['action'] = ''
+#                tmp_out['service'] = ''
+#                tmp_out['source'] = ''
+#                tmp_out['destination'] = ''
+#                tmp_out['log'] = ''
+#                
+#                if tmp_split[2] == 'remark':
+#                    acl_remark = ' '.join(tmp_split[3:])
+#                elif tmp_split[2] == 'extended':
+#                    tmp_out['action'] = tmp_split[3]
+#                    tmp_out['service'] = ''
+#                    tmp_out['source'] = ''
+#                    tmp_out['destination'] = ''
+#                    tmp_out['log'] = ''
+#                else:
+#                    raise ValueError
 #
+#                unparsed_tree.pop(line)
+#            except:
+#                print("Error in parsing line (ACLs): ", line)
+        
+        if re.match("^username .*",line):
+            misc_settings.append(line)
+            unparsed_tree.pop(line)
+        if re.match("^interface .*",line):
+            misc_settings.append(line)
+            unparsed_tree.pop(line)
+        if re.match("^route .*",line):
+            misc_settings.append(line)
+            unparsed_tree.pop(line)
+        if re.match("^dns server-group.*",line):
+            misc_settings.append(line)
+            unparsed_tree.pop(line)
+        if re.match("^logging.*",line):
+            misc_settings.append(line)
+            unparsed_tree.pop(line)
+        if re.match("^no logging.*",line):
+            misc_settings.append(line)
+            unparsed_tree.pop(line)
+        if re.match("^aaa-server.*",line):
+            misc_settings.append(line)
+            unparsed_tree.pop(line)
+        if re.match("^aaa .*",line):
+            misc_settings.append(line)
+            unparsed_tree.pop(line)
+        if re.match("^snmp-server.*",line):
+            misc_settings.append(line)
+            unparsed_tree.pop(line)
+        if re.match("^ssh .*",line):
+            misc_settings.append(line)
+            unparsed_tree.pop(line)
+        if re.match("^http .*",line):
+            misc_settings.append(line)
+            unparsed_tree.pop(line)
+        if re.match("^ntp .*",line):
+            misc_settings.append(line)
+            unparsed_tree.pop(line)  
+
 #        # Identify and collect configurations for all configured static NATs
 #        if re.match("^nat .*", line):
 #            static_nat.append(line)
 
 
     # Return all these things. At this point we aren't being discriminate. These are a raw collections of all items.
-    return (names, addresses, addrgrps, services, servicegrps, acls, unparsed_tree)
+    return (names, addresses, addrgrps, services, servicegrps, acls, misc_settings, unparsed_tree)
 
 def main(config_file: str):
     # Open the source configuration file for reading and import/parse it.
@@ -435,7 +530,7 @@ def main(config_file: str):
 
     config_level = indent_level(config_raw)
     config_tree = ttree_to_json(config_level)
-    ret_names, ret_addresses, ret_addrgrps, ret_services, ret_servicegrps, ret_acls, ret_unparsed = parse_asa_config(config_tree)
+    ret_names, ret_addresses, ret_addrgrps, ret_services, ret_servicegrps, ret_acls, ret_misc_settings, ret_unparsed = parse_asa_config(config_tree)
 
     df_names = pd.DataFrame(data=ret_names)
     df_addresses = pd.DataFrame(data=ret_addresses)
@@ -443,6 +538,7 @@ def main(config_file: str):
     df_services = pd.DataFrame(data=ret_services)
     df_servicegrps = pd.DataFrame(data=ret_servicegrps)
     df_acls = pd.DataFrame(data=ret_acls)
+    df_misc_settings = pd.DataFrame(data=ret_misc_settings)
 
     with pd.ExcelWriter('output.xlsx') as writer:
         df_names.to_excel(writer, sheet_name='LocalDNS')
@@ -451,6 +547,7 @@ def main(config_file: str):
         df_services.to_excel(writer,sheet_name='Services')
         df_servicegrps.to_excel(writer,sheet_name='ServiceGrps')
         df_acls.to_excel(writer,sheet_name='ACLs')
+        df_misc_settings.to_excel(writer,sheet_name='MiscSettings')
 
     x = open('output.unparsed', 'w')
     for y in ret_unparsed:
