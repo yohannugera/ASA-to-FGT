@@ -1,5 +1,5 @@
 import re
-from ipaddress import IPv4Network
+from ipaddress import *
 import pandas as pd
 import typer
 
@@ -151,15 +151,19 @@ def ttree_to_json(ttree,level=0):
     return result
 def parse_asa_config(config_tree):
     # Set up lists and dictionaries for return purposes
+    interfaces = []
+    routes = []
     names = []
     addresses = []
     addrgrps = []
     services = []
     servicegrps = []
     acls = []
+    
     misc_settings = []
     unparsed_tree = config_tree.copy()
     acl_remark = ''     # This is because ACLs are coming with remarks
+    acl_map = {}
     
     # Populate services with ASA default values
     for entry in default_ports.keys():
@@ -176,6 +180,47 @@ def parse_asa_config(config_tree):
     
     # Read each line of the config, looking for configuration components that we care about
     for line in config_tree.keys():
+        # Identify all the interfaces
+        if re.match("^interface .*",line):
+            tmp_out = {}
+            tmp_out['status'] = ''
+            tmp_out['interface'] = line.split(' ')[1]
+            tmp_out['alias'] = ''
+            tmp_out['comment'] = ''
+            tmp_out['ip'] = ''
+            for x in config_tree[line].keys():
+                try:
+                    tmp_split = x.split(' ')
+                    if tmp_split[0] == 'shutdown':
+                        tmp_out['status'] = 'disable'
+                    elif tmp_split[0] == 'nameif':
+                        tmp_out['alias'] = tmp_split[1]
+                    elif tmp_split[0] == 'description':
+                        tmp_out['comment'] = ' '.join(tmp_split[1:])
+                    elif tmp_split[0] == 'ip':
+                        tmp_out['ip'] = tmp_split[2]+"/"+str(IPv4Network('0.0.0.0/'+tmp_split[3]).prefixlen)
+                        routes.append({'dst':str(ip_interface(tmp_out['ip']).network),'device':tmp_out['interface'],'gateway':'0.0.0.0'})
+                    elif tmp_split[0] == 'no':
+                        pass
+                    elif tmp_split[0] == 'security-level':
+                        pass
+                    elif tmp_split[0] == 'management-only':
+                        pass
+                    else:
+                        raise ValueError
+                except:
+                    print("Error in parsing line (Interfaces): ", line.split(' ')[1], x)
+            interfaces.append(tmp_out)
+            unparsed_tree.pop(line)
+        if re.match("^access-group .*",line):
+            tmp_split = line.split(' ')
+            acl_map[tmp_split[1]] = tmp_split[4]
+            unparsed_tree.pop(line)
+        # Identify all the routes
+        if re.match("^route .*",line):
+            x = line.split(' ')
+            routes.append({'dst':ip_interface(x[2]+'/'+x[3]).network,'gateway':x[4],'device':x[1]})
+            unparsed_tree.pop(line)
         # Identify all staticallly configured name/IPAddress translations
         if re.match("^name (([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]).*", line):
             tmp = line.split(' ')
@@ -449,41 +494,115 @@ def parse_asa_config(config_tree):
                 unparsed_tree.pop(line)
             except:
                 print("Error in parsing line (Service Groups / Protocols): ", line)
-
-#        # Identify and collect configurations for all configured access lists
-#        if re.match("^access-list .*", line):
-#            try:
-#                tmp_split = line.split(' ')
-#                tmp_out = {}
-#                tmp_out['direction'] = tmp_split[1]
-#                tmp_out['action'] = ''
-#                tmp_out['service'] = ''
-#                tmp_out['source'] = ''
-#                tmp_out['destination'] = ''
-#                tmp_out['log'] = ''
-#                
-#                if tmp_split[2] == 'remark':
-#                    acl_remark = ' '.join(tmp_split[3:])
-#                elif tmp_split[2] == 'extended':
-#                    tmp_out['action'] = tmp_split[3]
-#                    tmp_out['service'] = ''
-#                    tmp_out['source'] = ''
-#                    tmp_out['destination'] = ''
-#                    tmp_out['log'] = ''
-#                else:
-#                    raise ValueError
-#
-#                unparsed_tree.pop(line)
-#            except:
-#                print("Error in parsing line (ACLs): ", line)
+        # Identify and collect configurations for all configured access lists
+        if re.match("^access-list .*", line):
+            try:
+                tmp_split = line.split(' ')
+                tmp_out = {}
+                tmp_out['direction'] = tmp_split[1]
+                tmp_out['action'] = ''
+                tmp_out['service'] = ''
+                tmp_out['source'] = ''
+                tmp_out['destination'] = ''
+                tmp_out['log'] = ''
+                
+                if tmp_split[2] == 'remark':
+                    acl_remark = acl_remark+' '.join(tmp_split[3:])
+                elif tmp_split[2] == 'extended':
+                    tmp_out['action'] = tmp_split[3]
+                    if tmp_split[4] == 'tcp' or tmp_split[4] == 'udp':
+                        if tmp_split[10] in default_ports.keys():
+                            tmp_out['service'] = tmp_split[10]
+                        else:
+                            tmp_out['service'] = tmp_split[4]+'-'+tmp_split[10]
+                            services.append({'name':tmp_split[4]+'-'+tmp_split[10],
+                                            'type':tmp_split[4],
+                                            'value':tmp_split[10],
+                                            'direction':'destination',
+                                            'comment':'Created by parser'})
+                        
+                        if tmp_split[5] == 'object' or tmp_split[5] == 'object-group':
+                            tmp_out['source'] = tmp_split[6]
+                        elif tmp_split[5] == 'host':
+                            tmp_out['source'] = 'h-'+tmp_split[6]
+                        elif tmp_split[5] == 'any':
+                            tmp_out['source'] = 'any'
+                        else:
+                            raise ValueError
+                        
+                        if tmp_split[7] == 'object' or tmp_split[7] == 'object-group':
+                            tmp_out['destination'] = tmp_split[8]
+                        elif tmp_split[7] == 'host':
+                            tmp_out['destination'] = 'h-'+tmp_split[8]
+                        elif tmp_split[6] == 'any':
+                            tmp_out['destination'] = 'any'
+                        else:
+                            raise ValueError
+                        
+                    elif tmp_split[4] == 'ip':
+                        tmp_out['service'] = 'ALL'
+                        if tmp_split[5] == 'object' or tmp_split[5] == 'object-group':
+                            tmp_out['source'] = tmp_split[6]
+                        elif tmp_split[5] == 'host':
+                            tmp_out['source'] = 'h-'+tmp_split[6]
+                        elif tmp_split[5] == 'any':
+                            tmp_out['source'] = 'any'
+                        else:
+                            raise ValueError
+                        
+                        if tmp_split[7] == 'object' or tmp_split[7] == 'object-group':
+                            tmp_out['destination'] = tmp_split[8]
+                        elif tmp_split[7] == 'host':
+                            tmp_out['destination'] = 'h-'+tmp_split[8]
+                        elif tmp_split[6] == 'any':
+                            tmp_out['destination'] = 'any'
+                        else:
+                            raise ValueError
+                        
+                    else:
+                        tmp_out['service'] = tmp_split[5]
+                        if tmp_split[6] == 'object' or tmp_split[6] == 'object-group':
+                            tmp_out['source'] = tmp_split[7]
+                        elif tmp_split[6] == 'host':
+                            tmp_out['source'] = 'h-'+tmp_split[7]
+                        elif tmp_split[6] == 'any':
+                            tmp_out['source'] = 'any'
+                        else:
+                            raise ValueError
+                        if tmp_split[8] == 'object' or tmp_split[8] == 'object-group':
+                            tmp_out['destination'] = tmp_split[9]
+                        elif tmp_split[8] == 'host':
+                            tmp_out['destination'] = 'h-'+tmp_split[9]
+                        elif tmp_split[7] == 'any':
+                            tmp_out['destination'] = 'any'
+                        else:
+                            raise ValueError
+                        
+                    if tmp_split[-2] == 'log':
+                        tmp_out['log'] = 'all'
+                    else:
+                        pass
+                    tmp_out['comment'] = acl_remark
+                    acl_remark = ''
+                    acls.append(tmp_out)
+                else:
+                    raise ValueError
+                    
+                unparsed_tree.pop(line)
+            except:
+                print("Error in parsing line (ACLs): ", line)
+        # Identify local-in policies
+        if re.match("^ssh .*",line):
+            misc_settings.append(line)
+            unparsed_tree.pop(line)
+        if re.match("^http .*",line):
+            misc_settings.append(line)
+            unparsed_tree.pop(line)
         
+        if re.match("^nat .*",line):
+            misc_settings.append(line)
+            unparsed_tree.pop(line)
         if re.match("^username .*",line):
-            misc_settings.append(line)
-            unparsed_tree.pop(line)
-        if re.match("^interface .*",line):
-            misc_settings.append(line)
-            unparsed_tree.pop(line)
-        if re.match("^route .*",line):
             misc_settings.append(line)
             unparsed_tree.pop(line)
         if re.match("^dns server-group.*",line):
@@ -504,23 +623,13 @@ def parse_asa_config(config_tree):
         if re.match("^snmp-server.*",line):
             misc_settings.append(line)
             unparsed_tree.pop(line)
-        if re.match("^ssh .*",line):
-            misc_settings.append(line)
-            unparsed_tree.pop(line)
-        if re.match("^http .*",line):
-            misc_settings.append(line)
-            unparsed_tree.pop(line)
         if re.match("^ntp .*",line):
             misc_settings.append(line)
             unparsed_tree.pop(line)  
 
-#        # Identify and collect configurations for all configured static NATs
-#        if re.match("^nat .*", line):
-#            static_nat.append(line)
-
 
     # Return all these things. At this point we aren't being discriminate. These are a raw collections of all items.
-    return (names, addresses, addrgrps, services, servicegrps, acls, misc_settings, unparsed_tree)
+    return (interfaces, routes, names, addresses, addrgrps, services, servicegrps, acls, acl_map, misc_settings, unparsed_tree)
 
 def main(config_file: str):
     # Open the source configuration file for reading and import/parse it.
@@ -530,17 +639,24 @@ def main(config_file: str):
 
     config_level = indent_level(config_raw)
     config_tree = ttree_to_json(config_level)
-    ret_names, ret_addresses, ret_addrgrps, ret_services, ret_servicegrps, ret_acls, ret_misc_settings, ret_unparsed = parse_asa_config(config_tree)
+    ret_interfaces, ret_routes, ret_names, ret_addresses, ret_addrgrps, ret_services, ret_servicegrps, ret_acls, ret_acl_map, ret_misc_settings, ret_unparsed = parse_asa_config(config_tree)
 
+    df_interfaces = pd.DataFrame(data=ret_interfaces)
+    df_routes = pd.DataFrame(data=ret_routes)
     df_names = pd.DataFrame(data=ret_names)
     df_addresses = pd.DataFrame(data=ret_addresses)
     df_addrgrps = pd.DataFrame(data=ret_addrgrps)
     df_services = pd.DataFrame(data=ret_services)
     df_servicegrps = pd.DataFrame(data=ret_servicegrps)
     df_acls = pd.DataFrame(data=ret_acls)
+    df_acls['direction'].replace(ret_acl_map, inplace=True)
+    df_acls.rename(columns={'direction':'srcintf'}, inplace=True)
+    df_acls.insert(loc=df_acls.columns.get_loc('action'), column='dstintf', value=['any']*len(df_acls))
     df_misc_settings = pd.DataFrame(data=ret_misc_settings)
 
     with pd.ExcelWriter('output.xlsx') as writer:
+        df_interfaces.to_excel(writer, sheet_name='Interfaces')
+        df_routes.to_excel(writer, sheet_name='Routes')
         df_names.to_excel(writer, sheet_name='LocalDNS')
         df_addresses.to_excel(writer, sheet_name='Addresses')
         df_addrgrps.to_excel(writer,sheet_name='AddrGrps')
