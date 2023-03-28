@@ -3,5 +3,4 @@
 *.cfg
 *.unparsed
 *.txt
-\.idea
-misc
+idea

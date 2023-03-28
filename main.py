@@ -25,8 +25,7 @@ default_protocols = {
     'pptp':'47',
     'snp':'109',
     'tcp':'6',
-    'udp':'17'
-}
+    'udp':'17'}
 default_ports = {
     'aol':['tcp','5190'],
     'bgp':['tcp','179'],
@@ -102,8 +101,7 @@ default_ports = {
     'who':['udp','513'],
     'whois':['tcp','43'],
     'www':['tcp-udp','80'],
-    'xdmcp':['udp','177']
-}
+    'xdmcp':['udp','177']}
 
 def tab_level(line):
     return(len(line)-len(line.lstrip(indentation_length)))
