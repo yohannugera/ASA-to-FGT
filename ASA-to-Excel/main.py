@@ -522,18 +522,28 @@ def parse_asa_config(config_tree):
                         if tmp_split[5] == 'object' or tmp_split[5] == 'object-group':
                             tmp_out['source'] = tmp_split[6]
                         elif tmp_split[5] == 'host':
-                            tmp_out['source'] = 'h-'+tmp_split[6]
+                            tmp_out['source'] = 'host-'+tmp_split[6]
+                            addresses.append({
+                                'name': 'host-'+tmp_split[6],
+                                'subnet': tmp_split[6]+'/32',
+                                'comment': 'Created by parser'
+                            })
                         elif tmp_split[5] == 'any':
-                            tmp_out['source'] = 'any'
+                            tmp_out['source'] = 'all'
                         else:
                             raise ValueError
                         
                         if tmp_split[7] == 'object' or tmp_split[7] == 'object-group':
                             tmp_out['destination'] = tmp_split[8]
                         elif tmp_split[7] == 'host':
-                            tmp_out['destination'] = 'h-'+tmp_split[8]
+                            tmp_out['destination'] = 'host-'+tmp_split[8]
+                            addresses.append({
+                                'name': 'host-'+tmp_split[8],
+                                'subnet': tmp_split[8]+'/32',
+                                'comment': 'Created by parser'
+                            })
                         elif tmp_split[6] == 'any':
-                            tmp_out['destination'] = 'any'
+                            tmp_out['destination'] = 'all'
                         else:
                             raise ValueError
                         
@@ -542,9 +552,14 @@ def parse_asa_config(config_tree):
                         if tmp_split[5] == 'object' or tmp_split[5] == 'object-group':
                             tmp_out['source'] = tmp_split[6]
                         elif tmp_split[5] == 'host':
-                            tmp_out['source'] = 'h-'+tmp_split[6]
+                            tmp_out['source'] = 'host-'+tmp_split[6]
+                            addresses.append({
+                                'name': 'host-'+tmp_split[6],
+                                'subnet': tmp_split[6]+'/32',
+                                'comment': 'Created by parser'
+                            })
                         elif tmp_split[5] == 'any':
-                            tmp_out['source'] = 'any'
+                            tmp_out['source'] = 'all'
                         else:
                             raise ValueError
                         
@@ -552,8 +567,13 @@ def parse_asa_config(config_tree):
                             tmp_out['destination'] = tmp_split[8]
                         elif tmp_split[7] == 'host':
                             tmp_out['destination'] = 'h-'+tmp_split[8]
+                            addresses.append({
+                                'name': 'host-'+tmp_split[8],
+                                'subnet': tmp_split[8]+'/32',
+                                'comment': 'Created by parser'
+                            })
                         elif tmp_split[6] == 'any':
-                            tmp_out['destination'] = 'any'
+                            tmp_out['destination'] = 'all'
                         else:
                             raise ValueError
                         
@@ -562,17 +582,27 @@ def parse_asa_config(config_tree):
                         if tmp_split[6] == 'object' or tmp_split[6] == 'object-group':
                             tmp_out['source'] = tmp_split[7]
                         elif tmp_split[6] == 'host':
-                            tmp_out['source'] = 'h-'+tmp_split[7]
+                            tmp_out['source'] = 'host-'+tmp_split[7]
+                            addresses.append({
+                                'name': 'host-'+tmp_split[7],
+                                'subnet': tmp_split[7]+'/32',
+                                'comment': 'Created by parser'
+                            })
                         elif tmp_split[6] == 'any':
-                            tmp_out['source'] = 'any'
+                            tmp_out['source'] = 'all'
                         else:
                             raise ValueError
                         if tmp_split[8] == 'object' or tmp_split[8] == 'object-group':
                             tmp_out['destination'] = tmp_split[9]
                         elif tmp_split[8] == 'host':
-                            tmp_out['destination'] = 'h-'+tmp_split[9]
+                            tmp_out['destination'] = 'host-'+tmp_split[9]
+                            addresses.append({
+                                'name': 'host-'+tmp_split[9],
+                                'subnet': tmp_split[9]+'/32',
+                                'comment': 'Created by parser'
+                            })
                         elif tmp_split[7] == 'any':
-                            tmp_out['destination'] = 'any'
+                            tmp_out['destination'] = 'all'
                         else:
                             raise ValueError
                         
@@ -596,7 +626,6 @@ def parse_asa_config(config_tree):
         if re.match("^http .*",line):
             misc_settings.append(line)
             unparsed_tree.pop(line)
-        
         if re.match("^nat .*",line):
             misc_settings.append(line)
             unparsed_tree.pop(line)
