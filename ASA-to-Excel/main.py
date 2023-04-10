@@ -186,6 +186,7 @@ def parse_asa_config(config_tree):
             tmp_out['alias'] = ''
             tmp_out['comment'] = ''
             tmp_out['ip'] = ''
+            tmp_out['vlan'] = ''
             for x in config_tree[line].keys():
                 try:
                     tmp_split = x.split(' ')
@@ -198,6 +199,8 @@ def parse_asa_config(config_tree):
                     elif tmp_split[0] == 'ip':
                         tmp_out['ip'] = tmp_split[2]+"/"+str(IPv4Network('0.0.0.0/'+tmp_split[3]).prefixlen)
                         routes.append({'dst':str(ip_interface(tmp_out['ip']).network),'device':tmp_out['interface'],'gateway':'0.0.0.0'})
+                    elif tmp_split[0] == 'vlan':
+                        tmp_out['vlan'] = tmp_split[1]
                     elif tmp_split[0] == 'no':
                         pass
                     elif tmp_split[0] == 'security-level':
@@ -208,6 +211,7 @@ def parse_asa_config(config_tree):
                         raise ValueError
                 except:
                     print("Error in parsing line (Interfaces): ", line.split(' ')[1], x)
+                    a = input('Error occured. Please enter to continue...')
             interfaces.append(tmp_out)
             unparsed_tree.pop(line)
         if re.match("^access-group .*",line):
@@ -249,6 +253,7 @@ def parse_asa_config(config_tree):
                 unparsed_tree.pop(line)
             except:
                 print("Error in parsing line (Addresses): ",line)
+                a = input('Error occured. Please enter to continue...')
         # Identify and collect configurations for all configured object groups
         if re.match("^object-group network.*",line):
             try:
@@ -284,6 +289,7 @@ def parse_asa_config(config_tree):
 
             except:
                 print("Error in parsing line (Object Groups): ", line)
+                a = input('Error occured. Please enter to continue...')
         # Identify and collect configurations for all configured services
         if re.match("^object service.*",line):
             try:
@@ -316,6 +322,7 @@ def parse_asa_config(config_tree):
                 unparsed_tree.pop(line)
             except:
                 print("Error in parsing line (Services): ",line)
+                a = input('Error occured. Please enter to continue...')
         # Identify and collect configurations for all configured service groups
         if re.match("^object-group service.* tcp$",line):
             try:
@@ -357,6 +364,7 @@ def parse_asa_config(config_tree):
                 unparsed_tree.pop(line)
             except:
                 print("Error in parsing line (Service Groups / TCP): ", line)
+                a = input('Error occured. Please enter to continue...')
         elif re.match("^object-group service.* udp$",line):
             try:
                 tmp_out = {}
@@ -397,6 +405,7 @@ def parse_asa_config(config_tree):
                 unparsed_tree.pop(line)
             except:
                 print("Error in parsing line (Service Groups / UDP): ", line)
+                a = input('Error occured. Please enter to continue...')
         elif re.match("^object-group service.* tcp-udp$",line):
             try:
                 tmp_out = {}
@@ -437,6 +446,7 @@ def parse_asa_config(config_tree):
                 unparsed_tree.pop(line)
             except:
                 print("Error in parsing line (Service Groups / TCP-UDP): ", line)
+                a = input('Error occured. Please enter to continue...')
         elif re.match("^object-group service.*",line):
             try:
                 tmp_out = {}
@@ -476,6 +486,7 @@ def parse_asa_config(config_tree):
                 unparsed_tree.pop(line)
             except:
                 print("Error in parsing line (Service Groups / Mixed): ", line)
+                a = input('Error occured. Please enter to continue...')
         if re.match("^object-group protocol.*",line):
             try:
                 tmp_out = {}
@@ -492,6 +503,7 @@ def parse_asa_config(config_tree):
                 unparsed_tree.pop(line)
             except:
                 print("Error in parsing line (Service Groups / Protocols): ", line)
+                a = input('Error occured. Please enter to continue...')
         # Identify and collect configurations for all configured access lists
         if re.match("^access-list .*", line):
             try:
@@ -504,121 +516,128 @@ def parse_asa_config(config_tree):
                 tmp_out['destination'] = ''
                 tmp_out['log'] = ''
                 
-                if tmp_split[2] == 'remark':
-                    acl_remark = acl_remark+' '.join(tmp_split[3:])
-                elif tmp_split[2] == 'extended':
-                    tmp_out['action'] = tmp_split[3]
-                    if tmp_split[4] == 'tcp' or tmp_split[4] == 'udp':
-                        if tmp_split[10] in default_ports.keys():
-                            tmp_out['service'] = tmp_split[10]
-                        else:
-                            tmp_out['service'] = tmp_split[4]+'-'+tmp_split[10]
-                            services.append({'name':tmp_split[4]+'-'+tmp_split[10],
-                                            'type':tmp_split[4],
-                                            'value':tmp_split[10],
-                                            'direction':'destination',
-                                            'comment':'Created by parser'})
-                        
-                        if tmp_split[5] == 'object' or tmp_split[5] == 'object-group':
-                            tmp_out['source'] = tmp_split[6]
-                        elif tmp_split[5] == 'host':
-                            tmp_out['source'] = 'host-'+tmp_split[6]
-                            addresses.append({
-                                'name': 'host-'+tmp_split[6],
-                                'subnet': tmp_split[6]+'/32',
-                                'comment': 'Created by parser'
-                            })
-                        elif tmp_split[5] == 'any':
-                            tmp_out['source'] = 'all'
-                        else:
-                            raise ValueError
-                        
-                        if tmp_split[7] == 'object' or tmp_split[7] == 'object-group':
-                            tmp_out['destination'] = tmp_split[8]
-                        elif tmp_split[7] == 'host':
-                            tmp_out['destination'] = 'host-'+tmp_split[8]
-                            addresses.append({
-                                'name': 'host-'+tmp_split[8],
-                                'subnet': tmp_split[8]+'/32',
-                                'comment': 'Created by parser'
-                            })
-                        elif tmp_split[6] == 'any':
-                            tmp_out['destination'] = 'all'
-                        else:
-                            raise ValueError
-                        
-                    elif tmp_split[4] == 'ip':
-                        tmp_out['service'] = 'ALL'
-                        if tmp_split[5] == 'object' or tmp_split[5] == 'object-group':
-                            tmp_out['source'] = tmp_split[6]
-                        elif tmp_split[5] == 'host':
-                            tmp_out['source'] = 'host-'+tmp_split[6]
-                            addresses.append({
-                                'name': 'host-'+tmp_split[6],
-                                'subnet': tmp_split[6]+'/32',
-                                'comment': 'Created by parser'
-                            })
-                        elif tmp_split[5] == 'any':
-                            tmp_out['source'] = 'all'
-                        else:
-                            raise ValueError
-                        
-                        if tmp_split[7] == 'object' or tmp_split[7] == 'object-group':
-                            tmp_out['destination'] = tmp_split[8]
-                        elif tmp_split[7] == 'host':
-                            tmp_out['destination'] = 'h-'+tmp_split[8]
-                            addresses.append({
-                                'name': 'host-'+tmp_split[8],
-                                'subnet': tmp_split[8]+'/32',
-                                'comment': 'Created by parser'
-                            })
-                        elif tmp_split[6] == 'any':
-                            tmp_out['destination'] = 'all'
-                        else:
-                            raise ValueError
-                        
-                    else:
-                        tmp_out['service'] = tmp_split[5]
-                        if tmp_split[6] == 'object' or tmp_split[6] == 'object-group':
-                            tmp_out['source'] = tmp_split[7]
-                        elif tmp_split[6] == 'host':
-                            tmp_out['source'] = 'host-'+tmp_split[7]
-                            addresses.append({
-                                'name': 'host-'+tmp_split[7],
-                                'subnet': tmp_split[7]+'/32',
-                                'comment': 'Created by parser'
-                            })
-                        elif tmp_split[6] == 'any':
-                            tmp_out['source'] = 'all'
-                        else:
-                            raise ValueError
-                        if tmp_split[8] == 'object' or tmp_split[8] == 'object-group':
-                            tmp_out['destination'] = tmp_split[9]
-                        elif tmp_split[8] == 'host':
-                            tmp_out['destination'] = 'host-'+tmp_split[9]
-                            addresses.append({
-                                'name': 'host-'+tmp_split[9],
-                                'subnet': tmp_split[9]+'/32',
-                                'comment': 'Created by parser'
-                            })
-                        elif tmp_split[7] == 'any':
-                            tmp_out['destination'] = 'all'
-                        else:
-                            raise ValueError
-                        
-                    if tmp_split[-2] == 'log':
-                        tmp_out['log'] = 'all'
+                while len(tmp_split) > 0:
+                    while '' in tmp_split:
+                        tmp_split.pop(tmp_split.index(''))
+                    if tmp_split.pop(0) != 'access-list':
+                        raise ValueError
                     else:
                         pass
-                    tmp_out['comment'] = acl_remark
-                    acl_remark = ''
-                    acls.append(tmp_out)
-                else:
-                    raise ValueError
-                    
+                    tmp_out['direction'] = tmp_split.pop(0)
+                    line_type = tmp_split.pop(0)
+                    if line_type == 'remark':
+                        acl_remark = acl_remark+' '.join(tmp_split)
+                        tmp_split = []
+                    elif line_type == 'extended':
+                        tmp_out['action'] = tmp_split.pop(0)
+                        if 'log' in tmp_split:
+                            tmp_out['log'] = 'all'
+                            tmp_pop = tmp_split.pop(tmp_split.index('log'))
+                        else:
+                            pass
+                        srvs_verdict = tmp_split.pop(0)
+                        if srvs_verdict == 'tcp' or srvs_verdict == 'udp':
+                            if 'eq' in tmp_split:
+                                tmp_index = tmp_split.index('eq')
+                                srvsport = tmp_split[tmp_index+1]
+                                if srvsport in default_ports.keys():
+                                    tmp_out['service'] = srvsport
+                                else:
+                                    tmp_out['service'] = srvs_verdict+'-'+srvsport
+                                    services.append({'name':tmp_out['service'],
+                                                    'type':srvs_verdict,
+                                                    'value':srvsport,
+                                                    'direction':'destination',
+                                                    'comment':'Created by parser'})
+                                tmp_pop = tmp_split.pop(tmp_index)
+                                tmp_pop = tmp_split.pop(tmp_index)
+                                
+                            elif 'range' in tmp_split:
+                                tmp_index = tmp_split.index('range')
+                                srvsport = tmp_split[tmp_index+1]+'-'+tmp_split[tmp_index+2]
+                                tmp_out['service'] = srvs_verdict+'-'+srvsport
+                                tmp_pop = tmp_split.pop(tmp_index)
+                                tmp_pop = tmp_split.pop(tmp_index)
+                                tmp_pop = tmp_split.pop(tmp_index)
+                                services.append({'name':tmp_out['service'],
+                                                'type':srvs_verdict,
+                                                'value':srvsport,
+                                                'direction':'destination',
+                                                'comment':'Created by parser'})
+                            else:
+                                raise ValueError
+                        elif srvs_verdict == 'ip':
+                            tmp_out['service'] = "ALL"
+                        elif srvs_verdict == 'object' or srvs_verdict == 'object-group':
+                            tmp_out['service'] = tmp_split.pop(0)
+                        elif srvs_verdict in default_ports.keys() or srvs_verdict in default_protocols.keys():
+                            tmp_out['service'] = srvs_verdict
+                        else:
+                            raise ValueError
+                            
+                        src_verdict = tmp_split.pop(0)
+                        if src_verdict == 'object' or src_verdict == 'object-group':
+                            tmp_out['source'] = tmp_split.pop(0)
+                        elif src_verdict == 'any' or src_verdict == 'any4':
+                            tmp_out['source'] = 'all'
+                        elif src_verdict == 'host':
+                            tmp_pop = tmp_split.pop(0)
+                            tmp_out['source'] = 'host-'+tmp_pop
+                            addresses.append({
+                                    'name': tmp_out['source'],
+                                    'subnet': tmp_pop+'/32',
+                                    'comment': 'Created by parser'
+                                    })
+                        elif src_verdict == 'network':
+                            tmp_network = tmp_split.pop(0)
+                            tmp_subnet = str(IPv4Network('0.0.0.0/' + tmp_split.pop(0)).prefixlen)
+                            tmp_out['source'] = 'n-'+tmp_network+'n'+tmp_subnet
+                            addresses.append({
+                                    'name': tmp_out['source'],
+                                    'subnet': tmp_network+'/'+tmp_subnet,
+                                    'comment': 'Created by parser'
+                                    })
+                        else:
+                            raise ValueError
+                            
+                        dst_verdict = tmp_split.pop(0)
+                        if dst_verdict == 'object' or dst_verdict == 'object-group':
+                            tmp_out['destination'] = tmp_split.pop(0)
+                        elif dst_verdict == 'any' or dst_verdict == 'any4':
+                            tmp_out['destination'] = 'all'
+                        elif dst_verdict == 'host':
+                            tmp_pop = tmp_split.pop(0)
+                            tmp_out['destination'] = 'host-'+tmp_pop
+                            addresses.append({
+                                    'name': tmp_out['destination'],
+                                    'subnet': tmp_pop+'/32',
+                                    'comment': 'Created by parser'
+                                    })
+                        elif dst_verdict == 'network':
+                            tmp_network = tmp_split.pop(0)
+                            tmp_subnet = str(IPv4Network('0.0.0.0/' + tmp_split.pop(0)).prefixlen)
+                            tmp_out['destination'] = 'n-'+tmp_network+'n'+tmp_subnet
+                            addresses.append({
+                                    'name': tmp_out['destination'],
+                                    'subnet': tmp_network+'/'+tmp_subnet,
+                                    'comment': 'Created by parser'
+                                    })
+                        else:
+                            raise ValueError
+                            
+                        tmp_out['comment'] = acl_remark
+                        acl_remark = ''
+                        acls.append(tmp_out)
+                        
+                    else:
+                        raise ValueError
+
                 unparsed_tree.pop(line)
             except:
                 print("Error in parsing line (ACLs): ", line)
+                print("Were able to parse: ",tmp_out)
+                print("Left with:", tmp_split)
+                a = input('Error occured. Please enter to continue...')
         # Identify local-in policies
         if re.match("^ssh .*",line):
             misc_settings.append(line)
@@ -681,7 +700,7 @@ def main(config_file: str):
     df_acls.insert(loc=df_acls.columns.get_loc('action'), column='dstintf', value=['any']*len(df_acls))
     df_misc_settings = pd.DataFrame(data=ret_misc_settings)
 
-    with pd.ExcelWriter('output.xlsx') as writer:
+    with pd.ExcelWriter(config_file.split('.')[0]+'.xlsx') as writer:
         df_interfaces.to_excel(writer, sheet_name='Interfaces')
         df_routes.to_excel(writer, sheet_name='Routes')
         df_names.to_excel(writer, sheet_name='LocalDNS')
@@ -692,7 +711,7 @@ def main(config_file: str):
         df_acls.to_excel(writer,sheet_name='ACLs')
         df_misc_settings.to_excel(writer,sheet_name='MiscSettings')
 
-    x = open('output.unparsed', 'w')
+    x = open(config_file.split('.')[0]+'.unparsed', 'w')
     for y in ret_unparsed:
         x.write(y+'\n')
         if config_tree[y] != 0:
