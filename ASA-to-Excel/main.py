@@ -187,6 +187,7 @@ def parse_asa_config(config_tree):
             tmp_out['comment'] = ''
             tmp_out['ip'] = ''
             tmp_out['vlan'] = ''
+            tmp_out['member-interface'] = ''
             for x in config_tree[line].keys():
                 try:
                     tmp_split = x.split(' ')
@@ -201,6 +202,8 @@ def parse_asa_config(config_tree):
                         routes.append({'dst':str(ip_interface(tmp_out['ip']).network),'device':tmp_out['interface'],'gateway':'0.0.0.0'})
                     elif tmp_split[0] == 'vlan':
                         tmp_out['vlan'] = tmp_split[1]
+                    elif tmp_split[0] == 'member-interface':
+                        tmp_out['member-interface'] = tmp_out['member-interface']+','+tmp_split[1]
                     elif tmp_split[0] == 'no':
                         pass
                     elif tmp_split[0] == 'security-level':
