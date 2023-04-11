@@ -199,7 +199,7 @@ def parse_asa_config(config_tree):
                         tmp_out['comment'] = ' '.join(tmp_split[1:])
                     elif tmp_split[0] == 'ip':
                         tmp_out['ip'] = tmp_split[2]+"/"+str(IPv4Network('0.0.0.0/'+tmp_split[3]).prefixlen)
-                        routes.append({'dst':str(ip_interface(tmp_out['ip']).network),'device':tmp_out['interface'],'gateway':'0.0.0.0'})
+                        routes.append({'dst':str(ip_interface(tmp_out['ip']).network),'device':tmp_out['alias'],'gateway':'0.0.0.0'})
                     elif tmp_split[0] == 'vlan':
                         tmp_out['vlan'] = tmp_split[1]
                     elif tmp_split[0] == 'member-interface':
@@ -700,6 +700,8 @@ def main(config_file: str):
     df_acls = pd.DataFrame(data=ret_acls)
     df_acls['direction'].replace(ret_acl_map, inplace=True)
     df_acls.rename(columns={'direction':'srcintf'}, inplace=True)
+    df_acls.rename(columns={'source':'srcaddr'}, inplace=True)
+    df_acls.rename(columns={'destination':'dstaddr'}, inplace=True)
     df_acls.insert(loc=df_acls.columns.get_loc('action'), column='dstintf', value=['any']*len(df_acls))
     df_misc_settings = pd.DataFrame(data=ret_misc_settings)
 
