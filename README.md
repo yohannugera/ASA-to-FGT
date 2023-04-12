@@ -45,14 +45,14 @@ Cisco ASA to Fortigate firewall conversion scripting are included here. I envisi
 2. Prepare the "environment.cfg" file. File should include following JSON data
 
 	{
-		"username":"<Administrator User with JSON RW Access>",
-		"password":"<Administrator Password>",
-		"ip":"<IP of FortiManager>",
-		"adom":"<ADOM>",
-		"region":"<Folder you wish to have the package>",
-		"package_name":"<Package Name>",
-		"device":"<Model Device Name>",
-		"config_file":"<Configuration Filename>"
+		"username":"Administrator User with JSON RW Access",
+		"password":"Administrator Password",
+		"ip":"IP of FortiManager",
+		"adom":"ADOM",
+		"region":"Folder you wish to have the package",
+		"package_name":"Package Name",
+		"device":"Model Device Name",
+		"config_file":"Configuration Filename"
 	}
 	
 3. Once you have "environment.cfg" and configuration file in the same folder as "main.py", run-it.
