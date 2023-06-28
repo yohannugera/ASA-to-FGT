@@ -102,6 +102,25 @@ default_ports = {
     'whois':['tcp','43'],
     'www':['tcp-udp','80'],
     'xdmcp':['udp','177']}
+icmp_types = {
+    'echo-reply':0,
+    'unreachable':3,
+    'source-quench':4,
+    'redirect':5,
+    'alternate-address':6,
+    'echo':8,
+    'router-advertisement':9,
+    'router-solicitation':10,
+    'time-exceeded':11,
+    'parameter-problem':12,
+    'timestamp-request':13,
+    'timestamp-reply':14,
+    'information-request':15,
+    'information-reply':16,
+    'address-mask-request':17,
+    'address-mask-reply':18,
+    'conversion-error':31,
+    'mobile-redirect':32}
 
 def tab_level(line):
     return(len(line)-len(line.lstrip(indentation_length)))
@@ -153,6 +172,7 @@ def parse_asa_config(config_tree):
     routes = []
     names = []
     addresses = []
+    addrrngs = []
     addrgrps = []
     services = []
     servicegrps = []
@@ -168,13 +188,19 @@ def parse_asa_config(config_tree):
         services.append({'name':entry,'type':default_ports[entry][0],
             'value':default_ports[entry][1],
             'direction':'destination',
-            'comment':'Created by Parser: ASA Default Ports'})
-    # Populate protocols with ASA default values
-    for entry in default_protocols.keys():
-        services.append({'name':entry,'type':'protocol',
-            'value':default_protocols[entry],
-            'direction':'',
-            'comment':'Created by Parser: ASA Default Ports'})  
+            'comment':'Created by Parser: ASA Defaults'})
+##    # Populate protocols with ASA default values
+##    for entry in default_protocols.keys():
+##        services.append({'name':entry,'type':'ip',
+##            'value':default_protocols[entry],
+##            'direction':'',
+##            'comment':'Created by Parser: ASA Defaults'})  
+    # Populate different variations of ICMP
+    for entry in icmp_types.keys():
+        services.append({'name':'icmp-'+entry,'type':'icmp',
+            'value':icmp_types[entry],
+            'direction':'destination',
+            'comment':'Created by Parser: ASA Defaults'})
     
     # Read each line of the config, looking for configuration components that we care about
     for line in config_tree.keys():
@@ -219,20 +245,12 @@ def parse_asa_config(config_tree):
             unparsed_tree.pop(line)
         if re.match("^access-group .*",line):
             tmp_split = line.split(' ')
-            acl_map[tmp_split[1]] = tmp_split[4]
+            acl_map[tmp_split[1]] = str([tmp_split[4]])
             unparsed_tree.pop(line)
         # Identify all the routes
         if re.match("^route .*",line):
             x = line.split(' ')
             routes.append({'dst':ip_interface(x[2]+'/'+x[3]).network,'gateway':x[4],'device':x[1]})
-            unparsed_tree.pop(line)
-        # Identify all staticallly configured name/IPAddress translations
-        if re.match("^name (([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]).*", line):
-            tmp = line.split(' ')
-            tmp_out = {}
-            tmp_out['name'] = tmp[2]
-            tmp_out['value'] = tmp[1]
-            names.append(tmp_out)
             unparsed_tree.pop(line)
         # Identify and collect configurations for all configured objects
         if re.match("^object network.*",line):
@@ -241,18 +259,32 @@ def parse_asa_config(config_tree):
                 tmp_out['name'] = line.split(' ')[-1]
                 tmp_out['subnet'] = ''
                 tmp_out['comment'] = ''
+                tmp_out['start-ip'] = ''
+                tmp_out['end-ip'] = ''
+                tmp_out_flag = 0
                 for x in config_tree[line].keys():
                     if re.match("^host.*",x):
                         tmp_out['subnet'] = x.split(' ')[-1]+'/32'
+                        tmp_out_flag = 1
                     elif re.match("^description.*",x):
                         tmp_out['comment'] = x[12:]
                     elif re.match("^subnet",x):
                         tmp_line = x.split(' ')
                         tmp_out['subnet'] = tmp_line[1]+'/'+str(IPv4Network('0.0.0.0/' + tmp_line[2]).prefixlen)
+                        tmp_out_flag = 1
+                    elif re.match("^range",x):
+                        tmp_line = x.split(' ')
+                        print(line)
+                        tmp_out['start-ip'] = x.split(' ')[-2]
+                        tmp_out['end-ip'] = x.split(' ')[-1]
                     else:
                         raise ValueError
-
-                addresses.append(tmp_out)
+                        
+                if tmp_out_flag>0:
+                    addresses.append(tmp_out)
+                else:
+                    addrrngs.append(tmp_out)
+                
                 unparsed_tree.pop(line)
             except:
                 print("Error in parsing line (Addresses): ",line)
@@ -514,9 +546,9 @@ def parse_asa_config(config_tree):
                 tmp_out = {}
                 tmp_out['direction'] = tmp_split[1]
                 tmp_out['action'] = ''
-                tmp_out['service'] = ''
-                tmp_out['source'] = ''
-                tmp_out['destination'] = ''
+                tmp_out['service'] = []
+                tmp_out['srcaddr'] = []
+                tmp_out['dstaddr'] = []
                 tmp_out['log'] = ''
                 
                 while len(tmp_split) > 0:
@@ -532,7 +564,7 @@ def parse_asa_config(config_tree):
                         acl_remark = acl_remark+' '.join(tmp_split)
                         tmp_split = []
                     elif line_type == 'extended':
-                        tmp_out['action'] = tmp_split.pop(0)
+                        tmp_out['action'] = "accept" if tmp_split.pop(0)=="permit" else "deny"
                         if 'log' in tmp_split:
                             tmp_out['log'] = 'all'
                             tmp_pop = tmp_split.pop(tmp_split.index('log'))
@@ -544,10 +576,10 @@ def parse_asa_config(config_tree):
                                 tmp_index = tmp_split.index('eq')
                                 srvsport = tmp_split[tmp_index+1]
                                 if srvsport in default_ports.keys():
-                                    tmp_out['service'] = srvsport
+                                    tmp_out['service'].append(srvsport)
                                 else:
-                                    tmp_out['service'] = srvs_verdict+'-'+srvsport
-                                    services.append({'name':tmp_out['service'],
+                                    tmp_out['service'].append(srvs_verdict+'-'+srvsport)
+                                    services.append({'name':srvs_verdict+'-'+srvsport,
                                                     'type':srvs_verdict,
                                                     'value':srvsport,
                                                     'direction':'destination',
@@ -558,11 +590,11 @@ def parse_asa_config(config_tree):
                             elif 'range' in tmp_split:
                                 tmp_index = tmp_split.index('range')
                                 srvsport = tmp_split[tmp_index+1]+'-'+tmp_split[tmp_index+2]
-                                tmp_out['service'] = srvs_verdict+'-'+srvsport
+                                tmp_out['service'].append(srvs_verdict+'-'+srvsport)
                                 tmp_pop = tmp_split.pop(tmp_index)
                                 tmp_pop = tmp_split.pop(tmp_index)
                                 tmp_pop = tmp_split.pop(tmp_index)
-                                services.append({'name':tmp_out['service'],
+                                services.append({'name':srvs_verdict+'-'+srvsport,
                                                 'type':srvs_verdict,
                                                 'value':srvsport,
                                                 'direction':'destination',
@@ -570,33 +602,33 @@ def parse_asa_config(config_tree):
                             else:
                                 raise ValueError
                         elif srvs_verdict == 'ip':
-                            tmp_out['service'] = "ALL"
+                            tmp_out['service'].append("ALL")
                         elif srvs_verdict == 'object' or srvs_verdict == 'object-group':
-                            tmp_out['service'] = tmp_split.pop(0)
+                            tmp_out['service'].append(tmp_split.pop(0))
                         elif srvs_verdict in default_ports.keys() or srvs_verdict in default_protocols.keys():
-                            tmp_out['service'] = srvs_verdict
+                            tmp_out['service'].append(srvs_verdict)
                         else:
                             raise ValueError
                             
                         src_verdict = tmp_split.pop(0)
                         if src_verdict == 'object' or src_verdict == 'object-group':
-                            tmp_out['source'] = tmp_split.pop(0)
+                            tmp_out['srcaddr'].append(tmp_split.pop(0))
                         elif src_verdict == 'any' or src_verdict == 'any4':
-                            tmp_out['source'] = 'all'
+                            tmp_out['srcaddr'].append('all')
                         elif src_verdict == 'host':
                             tmp_pop = tmp_split.pop(0)
-                            tmp_out['source'] = 'host-'+tmp_pop
+                            tmp_out['srcaddr'].append('host-'+tmp_pop)
                             addresses.append({
-                                    'name': tmp_out['source'],
+                                    'name': 'host-'+tmp_pop,
                                     'subnet': tmp_pop+'/32',
                                     'comment': 'Created by parser'
                                     })
                         elif src_verdict == 'network':
                             tmp_network = tmp_split.pop(0)
                             tmp_subnet = str(IPv4Network('0.0.0.0/' + tmp_split.pop(0)).prefixlen)
-                            tmp_out['source'] = 'n-'+tmp_network+'n'+tmp_subnet
+                            tmp_out['srcaddr'].append('n-'+tmp_network+'n'+tmp_subnet)
                             addresses.append({
-                                    'name': tmp_out['source'],
+                                    'name': 'n-'+tmp_network+'n'+tmp_subnet,
                                     'subnet': tmp_network+'/'+tmp_subnet,
                                     'comment': 'Created by parser'
                                     })
@@ -605,23 +637,23 @@ def parse_asa_config(config_tree):
                             
                         dst_verdict = tmp_split.pop(0)
                         if dst_verdict == 'object' or dst_verdict == 'object-group':
-                            tmp_out['destination'] = tmp_split.pop(0)
+                            tmp_out['dstaddr'].append(tmp_split.pop(0))
                         elif dst_verdict == 'any' or dst_verdict == 'any4':
-                            tmp_out['destination'] = 'all'
+                            tmp_out['dstaddr'].append('all')
                         elif dst_verdict == 'host':
                             tmp_pop = tmp_split.pop(0)
-                            tmp_out['destination'] = 'host-'+tmp_pop
+                            tmp_out['dstaddr'].append('host-'+tmp_pop)
                             addresses.append({
-                                    'name': tmp_out['destination'],
+                                    'name': 'host-'+tmp_pop,
                                     'subnet': tmp_pop+'/32',
                                     'comment': 'Created by parser'
                                     })
                         elif dst_verdict == 'network':
                             tmp_network = tmp_split.pop(0)
                             tmp_subnet = str(IPv4Network('0.0.0.0/' + tmp_split.pop(0)).prefixlen)
-                            tmp_out['destination'] = 'n-'+tmp_network+'n'+tmp_subnet
+                            tmp_out['dstaddr'].append('n-'+tmp_network+'n'+tmp_subnet)
                             addresses.append({
-                                    'name': tmp_out['destination'],
+                                    'name': 'n-'+tmp_network+'n'+tmp_subnet,
                                     'subnet': tmp_network+'/'+tmp_subnet,
                                     'comment': 'Created by parser'
                                     })
@@ -641,7 +673,10 @@ def parse_asa_config(config_tree):
                 print("Were able to parse: ",tmp_out)
                 print("Left with:", tmp_split)
                 a = input('Error occured. Please enter to continue...')
-        # Identify local-in policies
+        # Identify other configurations (won't be parsed)
+        if re.match("^name (([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]).*", line):
+            misc_settings.append(line)
+            unparsed_tree.pop(line)
         if re.match("^ssh .*",line):
             misc_settings.append(line)
             unparsed_tree.pop(line)
@@ -678,7 +713,7 @@ def parse_asa_config(config_tree):
 
 
     # Return all these things. At this point we aren't being discriminate. These are a raw collections of all items.
-    return (interfaces, routes, names, addresses, addrgrps, services, servicegrps, acls, acl_map, misc_settings, unparsed_tree)
+    return (interfaces, routes, addresses, addrrngs, addrgrps, services, servicegrps, acls, acl_map, misc_settings, unparsed_tree)
 
 def main(config_file: str):
     # Open the source configuration file for reading and import/parse it.
@@ -688,14 +723,16 @@ def main(config_file: str):
 
     config_level = indent_level(config_raw)
     config_tree = ttree_to_json(config_level)
-    ret_interfaces, ret_routes, ret_names, ret_addresses, ret_addrgrps, ret_services, ret_servicegrps, ret_acls, ret_acl_map, ret_misc_settings, ret_unparsed = parse_asa_config(config_tree)
+    ret_interfaces, ret_routes, ret_addresses, ret_addrrngs, ret_addrgrps, ret_services, ret_servicegrps, ret_acls, ret_acl_map, ret_misc_settings, ret_unparsed = parse_asa_config(config_tree)
 
     df_interfaces = pd.DataFrame(data=ret_interfaces)
     df_routes = pd.DataFrame(data=ret_routes)
-    df_names = pd.DataFrame(data=ret_names)
     df_addresses = pd.DataFrame(data=ret_addresses)
+    df_addresses = df_addresses.drop_duplicates()
+    df_addrrngs = pd.DataFrame(data=ret_addrrngs)
     df_addrgrps = pd.DataFrame(data=ret_addrgrps)
     df_services = pd.DataFrame(data=ret_services)
+    df_services = df_services.drop_duplicates()
     df_servicegrps = pd.DataFrame(data=ret_servicegrps)
     df_acls = pd.DataFrame(data=ret_acls)
     df_acls['direction'].replace(ret_acl_map, inplace=True)
@@ -708,8 +745,8 @@ def main(config_file: str):
     with pd.ExcelWriter(config_file.split('.')[0]+'.xlsx') as writer:
         df_interfaces.to_excel(writer, sheet_name='Interfaces')
         df_routes.to_excel(writer, sheet_name='Routes')
-        df_names.to_excel(writer, sheet_name='LocalDNS')
         df_addresses.to_excel(writer, sheet_name='Addresses')
+        df_addrrngs.to_excel(writer, sheet_name='Addrrngs')
         df_addrgrps.to_excel(writer,sheet_name='AddrGrps')
         df_services.to_excel(writer,sheet_name='Services')
         df_servicegrps.to_excel(writer,sheet_name='ServiceGrps')

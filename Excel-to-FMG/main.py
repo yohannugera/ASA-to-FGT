@@ -4,6 +4,9 @@ import json
 import re
 import pandas as pd
 import ipaddress
+from enum import Enum
+import typer
+import sys
 
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
@@ -16,6 +19,15 @@ REGION = ''
 PACKAGE_NAME = ''
 DEVICE = ''
 
+class Exec_Options (str, Enum):
+    all = "all"
+    address = "address"
+    address_range = "address_range"
+    address_group = "address_group"
+    custom_service = "custom_service"
+    service_group = "service_group"
+    policy = "policy"
+    
 def login():
     payload = json.dumps({
         "session": 1,
@@ -88,8 +100,83 @@ def add_address(name,subnet,comment):
     }
 
     return requests.request("POST", URL, headers=headers, data=payload, verify=False)
+def add_address_range(name,start_ip,end_ip,comment):
+    payload = json.dumps({
+      "method": "add",
+      "params": [
+        {
+          "data": [
+            {
+                "name": name,
+                "type": "iprange",
+                "start-ip": start_ip,
+                "end-ip": end_ip,
+                "comment": comment
+            }
+          ],
+          "url": "/pm/config/adom/"+ADOM+"/obj/firewall/address"
+        }
+      ],
+      "session": SESSION,
+      "id": 1
+    })
+    headers = {
+      'Content-Type': 'application/json'
+    }
+
+    return requests.request("POST", URL, headers=headers, data=payload, verify=False)
 def map_address(name,subnet,comment):
     print("Not Coded Yet")
+
+def create_address(addr_file):
+    unconfigured_counter = 0
+    for x in addr_file.to_dict(orient='records'):
+        address_name = x['name']
+        address_subnet = x['subnet']
+        address_comment = x['comment'] if isinstance(x['comment'],str) else ''
+        
+        pre_check = json.loads(get_address(address_name).text)
+        
+        if pre_check['result'][0]['status']['code'] == -3:
+            print("Configuring Address Object:",address_name)
+            resp = add_address(address_name,address_subnet,address_comment)
+            print(resp.text)
+        elif pre_check['result'][0]['status']['code'] == 0:
+            if ipaddress.ip_network(x['subnet']) == ipaddress.ip_network(pre_check['result'][0]['data']['subnet'][0]+"/"+pre_check['result'][0]['data']['subnet'][1]):
+                print("Address",address_name,"is already configured with correct value")
+                pass
+            else:
+                print("Address",address_name,"is already configured but with a different value")
+                unconfigured_counter = unconfigured_counter+1
+        else:
+            print("Unconfigured Address Object:",address_name)
+            unconfigured_counter = unconfigured_counter+1
+            
+    print("Script didn't configure",unconfigured_counter,"entries out of",len(addr_file))
+    input("Press enter to continue...")
+def create_addrrng(addrrng_file):
+    unconfigured_counter = 0
+    for x in addrrng_file.to_dict(orient='records'):
+        address_name = x['name']
+        address_startip = x['start-ip']
+        address_endip = x['end-ip']
+        address_comment = x['comment'] if isinstance(x['comment'],str) else ''
+        
+        pre_check = json.loads(get_address(address_name).text)
+        print(pre_check)
+        
+        if pre_check['result'][0]['status']['code'] == -3:
+            print("Configuring Address Object:",address_name)
+            resp = add_address_range(address_name,address_startip,address_endip,address_comment)
+            print(resp.text)
+        elif pre_check['result'][0]['status']['code'] == 0:
+            print(pre_check['result'][0]['data']['start-ip'],pre_check['result'][0]['data']['end-ip'])
+        else:
+            print("Unconfigured Address Object:",address_name)
+            unconfigured_counter = unconfigured_counter+1
+            
+    print("Script didn't configure",unconfigured_counter,"entries out of",len(addrrng_file))
+    input("Press enter to continue...")
 
 def get_addrgrp(addrgrp):
     payload = json.dumps({
@@ -132,6 +219,35 @@ def add_addrgrp(name,member,comment):
     return requests.request("POST", URL, headers=headers, data=payload, verify=False) 
 def map_addrgrp(name,member,comment):
     print("Not Coded Yet")
+
+def create_addrgrp(addrgrp_file):
+    unconfigured_counter = 0
+    for x in addrgrp_file.to_dict(orient='records'):
+        addrgrp_name = x['name'].replace('/','\\/')
+        addrgrp_members = x['members']
+        addrgrp_comment = x['comment'] if isinstance(x['comment'],str) else ''
+        
+        pre_check = json.loads(get_addrgrp(addrgrp_name).text)
+        
+        if pre_check['result'][0]['status']['code'] == -3:
+            print("Configuring AddrGrp Object:",addrgrp_name)
+            resp = add_addrgrp(addrgrp_name,eval(addrgrp_members),addrgrp_comment)
+            print(resp.text)
+        elif pre_check['result'][0]['status']['code'] == 0:
+            pre_check_members = sorted(pre_check['result'][0]['data']['member'])
+            addrgrp_members = sorted(eval(addrgrp_members))
+            if addrgrp_members == pre_check_members:
+                print("Address group",addrgrp_name,"is already configured with correct members")
+                pass
+            else:
+                print("Address group",address_name,"is already configured but with a different members")
+                unconfigured_counter = unconfigured_counter+1
+        else:
+            print("Unconfigured Address Group Object:",address_name)
+            unconfigured_counter = unconfigured_counter+1
+
+    print("Script didn't configure",unconfigured_counter,"entries out of",len(addrgrp_file))
+    input("Press enter to continue...")
 
 def get_all_services():
     payload = json.dumps({
@@ -234,6 +350,49 @@ def add_service(name,service_type,port,comment):
 def map_service(name,service_type,port,comment):
     print("Not Coded Yet")
 
+def create_service(srvs_file):
+    unconfigured_counter = 0
+    for x in srvs_file.to_dict(orient='records'):
+        service_name = x['name']
+        service_type = x['type']
+        service_value = str(x['value'])
+        service_comment = x['comment'] if isinstance(x['comment'],str) else ''
+        
+        pre_check = json.loads(get_service(service_name).text)
+        
+        if pre_check['result'][0]['status']['code'] == -3:
+            print("Configuring Service Object:",service_name)
+            resp = add_service(service_name,service_type,service_value,service_comment)
+            print(resp.text)
+        elif pre_check['result'][0]['status']['code'] == 0:
+            if service_type == "tcp":
+                if service_value in pre_check['result'][0]['data']['tcp-portrange']:
+                    print("Service",service_name,"is already configured with correct value")
+                else:
+                    unconfigured_counter = unconfigured_counter+1
+                    print("Service",service_name,"is already configured but with a different value")
+            elif service_type == "udp":
+                if service_value in pre_check['result'][0]['data']['udp-portrange']:
+                    print("Service",service_name,"is already configured with correct value")
+                else:
+                    unconfigured_counter = unconfigured_counter+1
+                    print("Service",service_name,"is already configured but with a different value")
+            elif service_type == "tcp-udp":
+                if (service_value in pre_check['result'][0]['data']['tcp-portrange']) and (service_value in pre_check['result'][0]['data']['udp-portrange']):
+                    print("Service",service_name,"is already configured with correct value")
+                else:
+                    unconfigured_counter = unconfigured_counter+1
+                    print("Service",service_name,"is already configured but with a different value")
+            else:
+                unconfigured_counter = unconfigured_counter+1
+                print("Unknown Error in",service_name)
+        else:
+            print("Unconfigured Address Object:",address_name)
+            unconfigured_counter = unconfigured_counter+1
+            
+    print("Script didn't configure",unconfigured_counter,"entries out of",len(srvs_file))
+    input("Press enter to continue...")
+
 def get_all_servicegrps():
     print("Not Coded Yet")
 def get_servicegrp(servicegrp):
@@ -277,6 +436,32 @@ def add_servicegrp(name,member,comment):
     return requests.request("POST", URL, headers=headers, data=payload, verify=False)
 def map_servicegrp(name,member,comment):
     print("Not Coded Yet")
+
+def create_servicegrp(srvgrps_file):
+    unconfigured_counter = 0
+    for x in srvgrps_file.to_dict(orient='records'):
+        servicegrp_name = x['name']
+        servicegrp_member = eval(x['members'])
+        servicegrp_comment = x['comment'] if isinstance(x['comment'],str) else ''
+        
+        pre_check = json.loads(get_servicegrp(servicegrp_name).text)
+        
+        if pre_check['result'][0]['status']['code'] == -3:
+            print("Configuring Service Object:",servicegrp_name)
+            resp = add_servicegrp(servicegrp_name,servicegrp_member,servicegrp_comment)
+            print(resp.text)
+        elif pre_check['result'][0]['status']['code'] == 0:
+            if servicegrp_member in pre_check['result'][0]['data']['member']:
+                print("Members",servicegrp_member,"is already in",pre_check['result'][0]['data']['name'])
+            else:
+                unconfigured_counter = unconfigured_counter+1
+                print("Service Group is already configured but with a different members")
+        else:
+            print("Unconfigured Address Object:",address_name)
+            unconfigured_counter = unconfigured_counter+1
+            
+    print("Script didn't configure",unconfigured_counter,"entries out of",len(srvgrps_file))
+    input("Press enter to continue...")
 
 def create_policypackage():
     payload = json.dumps({
@@ -339,10 +524,29 @@ def create_policy(name,srcintf,dstintf,srcaddr,dstaddr,service,action,log,commen
     headers = {
       'Content-Type': 'application/json'
     }
-
     return requests.request("POST", URL, headers=headers, data=payload, verify=False)
 
-def main():
+def create_policies(acl_file):
+    counter = 1
+    for x in acl_file.to_dict(orient='records'):
+        name = "Policy-"+str(counter)
+        srcaddr = eval(x['srcaddr'])
+        dstaddr = eval(x['dstaddr'])
+        service = eval(x['service'])
+        srcintf = eval(x['srcintf'])
+        dstintf = eval(x['dstintf'])
+        action = x['action']
+        log = x['log']
+        comment = x['comment'] if isinstance(x['comment'],str) else ''
+        
+        print("Configuring policy",counter)
+        counter = counter+1
+        resp = create_policy(name,srcintf,dstintf,srcaddr,dstaddr,service,action,log,comment)
+        print(resp.text)
+        
+    input("Press enter to continue...")
+
+def main(option: Exec_Options = Exec_Options.all):
     env_data = {}
 
     # Read environmental settings from a file...
@@ -372,173 +576,64 @@ def main():
     ## Reading Excel Configuration
     config_file = pd.ExcelFile(CONFIG_FILE)
     
-    # Read Address Groups from Excel
+    # Read Addresses from Excel
     addr_file = pd.read_excel(config_file,'Addresses')
-	
-    unconfigured_counter = 0
-    for x in addr_file.to_dict(orient='records'):
-        address_name = x['name'].replace('/','\\/')
-        address_name = address_name.replace('(','')
-        address_name = address_name.replace(')','-')
-        address_subnet = x['subnet']
-        address_comment = x['comment'] if isinstance(x['comment'],str) else ''
-        
-        pre_check = json.loads(get_address(address_name).text)
-        
-        if pre_check['result'][0]['status']['code'] == -3:
-            print("Configuring Address Object:",address_name)
-            resp = add_address(address_name,address_subnet,address_comment)
-            print(resp.txt)
-        elif pre_check['result'][0]['status']['code'] == 0:
-            if ipaddress.ip_network(x['subnet']) == ipaddress.ip_network(pre_check['result'][0]['data']['subnet'][0]+"/"+pre_check['result'][0]['data']['subnet'][1]):
-                print("Address",address_name,"is already configured with correct value")
-                pass
-            else:
-                print("Address",address_name,"is already configured but with a different value")
-                unconfigured_counter = unconfigured_counter+1
-        else:
-            print("Unconfigured Address Object:",address_name)
-            unconfigured_counter = unconfigured_counter+1
-            
-    print("Script didn't configure",unconfigured_counter,"entries out of",len(addr_file))
-    input("Press enter to continue...")
+    
+    # Read IP ranges from Excel
+    addrrng_file = pd.read_excel(config_file,'Addrrngs')
     
     # Read Address Groups from Excel
     addrgrp_file = pd.read_excel(config_file,'AddrGrps')
-
-    unconfigured_counter = 0
-    for x in addrgrp_file.to_dict(orient='records'):
-        addrgrp_name = x['name'].replace('/','\\/')
-        addrgrp_members = x['members']
-        addrgrp_comment = x['comment'] if isinstance(x['comment'],str) else ''
-        
-        pre_check = json.loads(get_addrgrp(addrgrp_name).text)
-        
-        if pre_check['result'][0]['status']['code'] == -3:
-            print("Configuring AddrGrp Object:",addrgrp_name)
-            resp = add_addrgrp(addrgrp_name,eval(addrgrp_members),addrgrp_comment)
-            print(resp.text)
-        elif pre_check['result'][0]['status']['code'] == 0:
-            pre_check_members = sorted(pre_check['result'][0]['data']['member'])
-            addrgrp_members = sorted(eval(addrgrp_members))
-            if addrgrp_members == pre_check_members:
-                print("Address group",addrgrp_name,"is already configured with correct members")
-                pass
-            else:
-                print("Address group",address_name,"is already configured but with a different members")
-                unconfigured_counter = unconfigured_counter+1
-        else:
-            print("Unconfigured Address Group Object:",address_name)
-            unconfigured_counter = unconfigured_counter+1
-
-    print("Script didn't configure",unconfigured_counter,"entries out of",len(addrgrp_file))
-    input("Press enter to continue...")
     
     # Read Services from Excel
     srvs_file = pd.read_excel(config_file,'Services')
     
-    unconfigured_counter = 0
-    for x in srvs_file.to_dict(orient='records'):
-        service_name = x['name']
-        service_type = x['type']
-        service_value = str(x['value'])
-        service_comment = x['comment'] if isinstance(x['comment'],str) else ''
-        
-        pre_check = json.loads(get_service(service_name).text)
-        
-        if pre_check['result'][0]['status']['code'] == -3:
-            print("Configuring Service Object:",service_name)
-            resp = add_service(service_name,service_type,service_value,service_comment)
-            print(resp.text)
-        elif pre_check['result'][0]['status']['code'] == 0:
-            if service_type == "tcp":
-                if service_value in pre_check['result'][0]['data']['tcp-portrange']:
-                    print("Service",service_name,"is already configured with correct value")
-                else:
-                    unconfigured_counter = unconfigured_counter+1
-                    print("Service",service_name,"is already configured but with a different value")
-            elif service_type == "udp":
-                if service_value in pre_check['result'][0]['data']['udp-portrange']:
-                    print("Service",service_name,"is already configured with correct value")
-                else:
-                    unconfigured_counter = unconfigured_counter+1
-                    print("Service",service_name,"is already configured but with a different value")
-            elif service_type == "tcp-udp":
-                if (service_value in pre_check['result'][0]['data']['tcp-portrange']) and (service_value in pre_check['result'][0]['data']['udp-portrange']):
-                    print("Service",service_name,"is already configured with correct value")
-                else:
-                    unconfigured_counter = unconfigured_counter+1
-                    print("Service",service_name,"is already configured but with a different value")
-            else:
-                unconfigured_counter = unconfigured_counter+1
-                print("Unknown Error in",service_name)
-        else:
-            print("Unconfigured Address Object:",address_name)
-            unconfigured_counter = unconfigured_counter+1
-            
-    print("Script didn't configure",unconfigured_counter,"entries out of",len(srvs_file))
-    input("Press enter to continue...")
-	
 	# Read Services from Excel
     srvgrps_file = pd.read_excel(config_file,'ServiceGrps')
-    
-    unconfigured_counter = 0
-    for x in srvgrps_file.to_dict(orient='records'):
-        servicegrp_name = x['name']
-        servicegrp_member = eval(x['members'])
-        servicegrp_comment = x['comment'] if isinstance(x['comment'],str) else ''
-        
-        pre_check = json.loads(get_servicegrp(servicegrp_name).text)
-        
-        if pre_check['result'][0]['status']['code'] == -3:
-            print("Configuring Service Object:",servicegrp_name)
-            resp = add_servicegrp(servicegrp_name,servicegrp_member,servicegrp_comment)
-            print(resp.text)
-        elif pre_check['result'][0]['status']['code'] == 0:
-            if servicegrp_member in pre_check['result'][0]['data']['member']:
-                print("Members",servicegrp_member,"is already in",pre_check['result'][0]['data']['name'])
-            else:
-                unconfigured_counter = unconfigured_counter+1
-                print("Service Group is already configured but with a different members")
-        else:
-            print("Unconfigured Address Object:",address_name)
-            unconfigured_counter = unconfigured_counter+1
-            
-    print("Script didn't configure",unconfigured_counter,"entries out of",len(srvgrps_file))
-    input("Press enter to continue...")    
-    
-    # Create new Policy Package
-    resp = create_policypackage()
-    print(resp.text)
     
     # Read ACLs from Excel
     acl_file = pd.read_excel(config_file,'ACLs')
     
-    counter = 1
-    for x in acl_file.to_dict(orient='records'):
-        name = "Policy-"+str(counter)
-        srcaddr = x['source'].replace('/','\\/')
-        srcaddr = srcaddr.replace('(','')
-        srcaddr = srcaddr.replace(')','-')
-        dstaddr = x['destination'].replace('/','\\/')
-        dstaddr = dstaddr.replace('(','')
-        dstaddr = dstaddr.replace(')','-')
-        service = x['service']
-        srcintf = x['srcintf']
-        dstintf = x['dstintf']
-        action = "accept" if x['action'] == "permit" else "deny"
-        log = x['log']
-        comment = x['comment'] if isinstance(x['comment'],str) else ''
+    if option.value == "all":
+        create_address(addr_file)
+        create_addrrng(addrrng_file)
+        create_addrgrp(addrgrp_file)
+        create_service(srvs_file)
+        create_servicegrp(srvgrps_file)
         
-        print("Configuring policy",counter)
-        counter = counter+1
-        resp = create_policy(name,srcintf,dstintf,srcaddr,dstaddr,service,action,log,comment)
+        # Create new Policy Package
+        resp = create_policypackage()
         print(resp.text)
         
-    input("Press enter to continue...")
+        create_policies(acl_file)
+        
+    elif option.value == "address":
+        create_address(addr_file)
+        
+    elif option.value == "address_range":
+        create_addrrng(addrrng_file)
+    
+    elif option.value == "address_group":
+        create_addrgrp(addrgrp_file)
+        
+    elif option.value == "custom_service":
+        create_service(srvs_file)
+    
+    elif option.value == "service_group":
+        create_servicegrp(srvgrps_file)
+        
+    elif option.value == "policy":
+        resp = create_policypackage()
+        print(resp.text)
+        
+        create_policies(acl_file)
+        
+    else:
+        print("No option provided!!!")
+        raise typer.Abort()
 
     # logout
     logout()
 
 if __name__=="__main__":
-    main()
+    typer.run(main)

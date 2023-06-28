@@ -33,11 +33,11 @@ def main(config_file: str):
     #interfaces_file = pd.read_excel(config_file,'Interfaces')
     routes_file = pd.read_excel(file,'Routes')
     addr_file = pd.read_excel(file,'Addresses')
-    #iprange_file = pd.read_excel(config_file,'IPranges')
+    addrrng_file = pd.read_excel(file,'Addrrngs')
     #fqdn_file = pd.read_excel(config_file,'FQDNs')
     addrgrp_file = pd.read_excel(file,'AddrGrps')
-    service_file = pd.read_excel(file,'Services')
-    servicegrp_file = pd.read_excel(file,'ServiceGrps')
+    #service_file = pd.read_excel(file,'Services')
+    #servicegrp_file = pd.read_excel(file,'ServiceGrps')
     policy_file = pd.read_excel(file,'ACLs')
 
     ## Routes...
@@ -60,9 +60,9 @@ def main(config_file: str):
             print("Error in importing ",x," to addr_obj")
 
     ## IP Ranges...
-    ip_rngs = {}
-    ##for x in iprange_file.to_dict(orient='records'):
-    ##    ip_rngs[x['name']] = x['start-ip']+"-"+x['end-ip']
+    addr_rngs = {}
+    for x in addrrng_file.to_dict(orient='records'):
+        addr_rngs[x['name']] = x['start-ip']+"-"+x['end-ip']
 
     ## Users...
     users = {}
@@ -90,9 +90,9 @@ def main(config_file: str):
         print("Best route for ",x,tmp)
         obj_route[x] = re.sub(' +',' ',tmp)
 
-    for x in list(ip_rngs.keys()):
+    for x in list(addr_rngs.keys()):
         try:
-            tmp = ip_rngs[x].split('-')
+            tmp = addr_rngs[x].split('-')
             routes = []
             for z in summarize_address_range(IPv4Address(tmp[0]),IPv4Address(tmp[1])):
                 for y in intf_assoc.keys():
@@ -161,12 +161,16 @@ def main(config_file: str):
     ## Policies...
     for x in policy_file.to_dict(orient='records'):
         try:
-            dstintf_col.append(str(obj_route[x['dstaddr']].split(' ')))
+            tmp_dstintf = []
+            for y in eval(x['dstaddr']):
+                tmp_dstintf = tmp_dstintf + obj_route[y].split(' ')
+            dstintf_col.append(str(tmp_dstintf))        
         except:
             print("Error in: ",x)
             a = input('Press ENTER to continue...')
 
     policy_file.insert(0, "dstintf-new", dstintf_col, True)
+
     ##policy_file.drop(policy_file[policy_file['src_negate']=='enable'].index, inplace=True)
     ##policy_file.drop(policy_file[policy_file['dst_negate']=='enable'].index, inplace=True)
     
