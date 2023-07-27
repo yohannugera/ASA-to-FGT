@@ -308,10 +308,16 @@ def parse_asa_config(config_tree):
                         tmp_out['members'].append(tmp)
                     elif re.match("^network-object.*",x):
                         tmp = x.split(' ')
-                        addresses.append({
-                            'name':"net-"+tmp[-2]+"n"+str(IPv4Network('0.0.0.0/'+tmp[-1]).prefixlen),
-                            'subnet':tmp[-2] + "/" + str(IPv4Network('0.0.0.0/'+tmp[-1]).prefixlen)})
-                        tmp_out['members'].append("net-"+tmp[-2]+"n"+str(IPv4Network('0.0.0.0/'+tmp[-1]).prefixlen))
+                        if tmp[-1] == "255.255.255.255":
+                            addresses.append({
+                                'name':"host-"+tmp[-2],
+                                'subnet':tmp[-2] + "/32"})
+                            tmp_out['members'].append("host-"+tmp[-2])
+                        else:                        
+                            addresses.append({
+                                'name':"net-"+tmp[-2]+"n"+str(IPv4Network('0.0.0.0/'+tmp[-1]).prefixlen),
+                                'subnet':tmp[-2] + "/" + str(IPv4Network('0.0.0.0/'+tmp[-1]).prefixlen)})
+                            tmp_out['members'].append("net-"+tmp[-2]+"n"+str(IPv4Network('0.0.0.0/'+tmp[-1]).prefixlen))
                     elif re.match("^group-object.*",x):
                         tmp_out['members'].append(x.split(' ')[-1])
                     elif re.match("^description.*", x):
