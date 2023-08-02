@@ -172,7 +172,6 @@ def parse_asa_config(config_tree):
     routes = []
     names = []
     addresses = []
-    addrrngs = []
     addrgrps = []
     services = []
     servicegrps = []
@@ -257,34 +256,30 @@ def parse_asa_config(config_tree):
             try:
                 tmp_out = {}
                 tmp_out['name'] = line.split(' ')[-1]
+                tmp_out['type'] = ''
                 tmp_out['subnet'] = ''
                 tmp_out['comment'] = ''
                 tmp_out['start-ip'] = ''
                 tmp_out['end-ip'] = ''
-                tmp_out_flag = 0
                 for x in config_tree[line].keys():
                     if re.match("^host.*",x):
                         tmp_out['subnet'] = x.split(' ')[-1]+'/32'
-                        tmp_out_flag = 1
+                        tmp_out['type'] = 'ipmask'
                     elif re.match("^description.*",x):
                         tmp_out['comment'] = x[12:]
                     elif re.match("^subnet",x):
                         tmp_line = x.split(' ')
                         tmp_out['subnet'] = tmp_line[1]+'/'+str(IPv4Network('0.0.0.0/' + tmp_line[2]).prefixlen)
-                        tmp_out_flag = 1
+                        tmp_out['type'] = 'ipmask'
                     elif re.match("^range",x):
                         tmp_line = x.split(' ')
-                        print(line)
                         tmp_out['start-ip'] = x.split(' ')[-2]
                         tmp_out['end-ip'] = x.split(' ')[-1]
+                        tmp_out['type'] = 'iprange'
                     else:
                         raise ValueError
                         
-                if tmp_out_flag>0:
-                    addresses.append(tmp_out)
-                else:
-                    addrrngs.append(tmp_out)
-                
+                addresses.append(tmp_out)
                 unparsed_tree.pop(line)
             except:
                 print("Error in parsing line (Addresses): ",line)
@@ -300,7 +295,8 @@ def parse_asa_config(config_tree):
                     if re.match("^network-object host .*", x):
                         tmp = x.split(' ')[-1]
                         addresses.append({
-                            'name':'h-'+tmp,
+                            'name':'host-'+tmp,
+                            'type':'ipmask',
                             'subnet':tmp+'/32'})
                         tmp_out['members'].append('h-'+tmp)
                     elif re.match("^network-object object.*",x):
@@ -311,11 +307,13 @@ def parse_asa_config(config_tree):
                         if tmp[-1] == "255.255.255.255":
                             addresses.append({
                                 'name':"host-"+tmp[-2],
+                                'type':'ipmask',
                                 'subnet':tmp[-2] + "/32"})
                             tmp_out['members'].append("host-"+tmp[-2])
                         else:                        
                             addresses.append({
                                 'name':"net-"+tmp[-2]+"n"+str(IPv4Network('0.0.0.0/'+tmp[-1]).prefixlen),
+                                'type':'ipmask',
                                 'subnet':tmp[-2] + "/" + str(IPv4Network('0.0.0.0/'+tmp[-1]).prefixlen)})
                             tmp_out['members'].append("net-"+tmp[-2]+"n"+str(IPv4Network('0.0.0.0/'+tmp[-1]).prefixlen))
                     elif re.match("^group-object.*",x):
@@ -626,6 +624,7 @@ def parse_asa_config(config_tree):
                             tmp_out['srcaddr'].append('host-'+tmp_pop)
                             addresses.append({
                                     'name': 'host-'+tmp_pop,
+                                    'type':'ipmask',
                                     'subnet': tmp_pop+'/32',
                                     'comment': 'Created by parser'
                                     })
@@ -635,6 +634,7 @@ def parse_asa_config(config_tree):
                             tmp_out['srcaddr'].append('n-'+tmp_network+'n'+tmp_subnet)
                             addresses.append({
                                     'name': 'n-'+tmp_network+'n'+tmp_subnet,
+                                    'type':'ipmask',
                                     'subnet': tmp_network+'/'+tmp_subnet,
                                     'comment': 'Created by parser'
                                     })
@@ -651,6 +651,7 @@ def parse_asa_config(config_tree):
                             tmp_out['dstaddr'].append('host-'+tmp_pop)
                             addresses.append({
                                     'name': 'host-'+tmp_pop,
+                                    'type':'ipmask',
                                     'subnet': tmp_pop+'/32',
                                     'comment': 'Created by parser'
                                     })
@@ -660,6 +661,7 @@ def parse_asa_config(config_tree):
                             tmp_out['dstaddr'].append('n-'+tmp_network+'n'+tmp_subnet)
                             addresses.append({
                                     'name': 'n-'+tmp_network+'n'+tmp_subnet,
+                                    'type':'ipmask',
                                     'subnet': tmp_network+'/'+tmp_subnet,
                                     'comment': 'Created by parser'
                                     })
@@ -719,7 +721,7 @@ def parse_asa_config(config_tree):
 
 
     # Return all these things. At this point we aren't being discriminate. These are a raw collections of all items.
-    return (interfaces, routes, addresses, addrrngs, addrgrps, services, servicegrps, acls, acl_map, misc_settings, unparsed_tree)
+    return (interfaces, routes, addresses, addrgrps, services, servicegrps, acls, acl_map, misc_settings, unparsed_tree)
 
 def main(config_file: str):
     # Open the source configuration file for reading and import/parse it.
@@ -729,13 +731,12 @@ def main(config_file: str):
 
     config_level = indent_level(config_raw)
     config_tree = ttree_to_json(config_level)
-    ret_interfaces, ret_routes, ret_addresses, ret_addrrngs, ret_addrgrps, ret_services, ret_servicegrps, ret_acls, ret_acl_map, ret_misc_settings, ret_unparsed = parse_asa_config(config_tree)
+    ret_interfaces, ret_routes, ret_addresses, ret_addrgrps, ret_services, ret_servicegrps, ret_acls, ret_acl_map, ret_misc_settings, ret_unparsed = parse_asa_config(config_tree)
 
     df_interfaces = pd.DataFrame(data=ret_interfaces)
     df_routes = pd.DataFrame(data=ret_routes)
     df_addresses = pd.DataFrame(data=ret_addresses)
     df_addresses = df_addresses.drop_duplicates()
-    df_addrrngs = pd.DataFrame(data=ret_addrrngs)
     df_addrgrps = pd.DataFrame(data=ret_addrgrps)
     df_services = pd.DataFrame(data=ret_services)
     df_services = df_services.drop_duplicates()
@@ -752,7 +753,6 @@ def main(config_file: str):
         df_interfaces.to_excel(writer, sheet_name='Interfaces')
         df_routes.to_excel(writer, sheet_name='Routes')
         df_addresses.to_excel(writer, sheet_name='Addresses')
-        df_addrrngs.to_excel(writer, sheet_name='Addrrngs')
         df_addrgrps.to_excel(writer,sheet_name='AddrGrps')
         df_services.to_excel(writer,sheet_name='Services')
         df_servicegrps.to_excel(writer,sheet_name='ServiceGrps')
